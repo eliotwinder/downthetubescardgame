@@ -1,0 +1,8 @@
+<component name="libraryTable">
+  <library name="websocket" type="javaScript">
+    <CLASSES>
+      <root url="file://$USER_HOME$/Downloads/socket.io.min.js" />
+    </CLASSES>
+    <SOURCES />
+  </library>
+</component>

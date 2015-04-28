@@ -1,0 +1,4 @@
+what is the best way to house my info?
+    the logic is currently setup so that each player is an object - can i use JSON?
+
+how do i connect the player with their object so that they only see their cards?

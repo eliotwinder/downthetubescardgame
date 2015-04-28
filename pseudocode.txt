@@ -1,0 +1,128 @@
+import random
+
+#global variables
+#
+#variable to hold all arrays
+loggedInPlayers = []
+
+#create a class for Players
+class Player:
+    score = 0
+    hand = []
+    bid = 0
+    tricks_taken = 0
+    def __init__(self, name):
+        self.name = name
+
+#Player arrives to login screen, fills in their name and presses login, which triggers:
+def login(namefromform):
+    loggedInPlayers.append(name = Player(name from input))
+
+    if Player is the first to log in:
+        #ofPlayers= input("how many people are playing")
+        #ofRounds = 60/#ofPlayers
+        send to waiting screen
+
+    elif loggedInPlayers < #ofPlayers:
+        send to waiting screen
+
+    elif loggedInPlayers == #ofPlayers:
+        (Player is the last to log in (#ofPlayers == the number of players logged in)
+        send everyone to the game screen and start game
+    else:
+        print "sorry, game's full"
+
+
+
+round = 0
+
+#gameplay starts here - 4 stages: determine dealer, dealing, determine trump, bidding, playing, scoring
+while round < #ofRounds:
+    round += 1
+
+    #pick dealer
+    def pick_dealer
+        if round == 1:
+            dealer_index = random index(between 0 and #of players)
+        else:
+            dealer++
+            dealer_index = dealer % #ofPlayers
+        dealer = loggedInPlayers[dealer_index]
+
+    #dealing
+    def deal:
+        deck = ["C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13" "JJJ", "WWW", "D01", "D02", "D03", "D04", "D05", "D06", "D07", "D08", "D09", "D10", "D11", "D12", "D13", "JJJ", "WWW", "H01", "H02", "H03", "H04", "H05", "H06", "H07", "H08", "H09", "H10", "H11", "H12", "H13", "JJJ", "WWW", "S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10", "S11", "S12", "S13", "JJJ", "WWW"]
+        deck.shuffle()
+        #ofTricks == round
+        for x in loggedInPlayers:
+            x.hand = []
+            while len(x.hand) < round:
+                x.hand.append(deck.pop(0))
+            x.hand = sorted(x.hand)
+        show each player only their own hand
+
+    #determine trump
+    def determine_trump:
+        trump = deck[0][0]
+        if trump == "J":
+            trump = "No Trump"
+        elif trump = "W":
+            dealer chooses suit
+        show trump to players
+
+    #bidding
+    def get_bids:
+        for x in loggedInPlayers #must start with loggedInPlayers[dealer]
+            x.bid = input("how many tricks will you take?", Integer input 0 - #ofTricks inclusive)
+            show everyone loggedinPlayers x.bid
+        start playing the round
+
+    def play_round:
+        tricks_taken = 0
+        for trick in range(0,round):
+            winning_card = [] # this will have two parameters - first parameter is the player that played it, second is it's score
+            if trick == 0:
+                player = loggedInPlayers[player - 1]
+            for x in loggedInPlayers (starting with player):
+                x.played_card = x.hand.pop(a card selected by x from x.hand)
+                #####need to add logic to what can and can't be played
+                if this is the first player to play:
+                    led_suit = x.played_card[0]
+                show card to all players
+                if x.played_card[0] == "W":
+                    this_card = [x.played_card, 50]
+                elif x.played_card[0] == trump:
+                    this_card = [x, 26 + int(x.played_card[1,2])
+                elif x.played_card[0] == led_suit:
+                    this_card = [x, 13 + int(x.played_card[1,2])
+                elif x.played_card[0] == "J":
+                    this_card = [x, 1]
+                else:
+                    this_card = [x, 0]
+
+                if this_card[1] > winning_card[1]:
+                    winning_card = this_card
+
+            winning_card[0]["tricks_taken"] += 1
+
+        #scoring
+        for x in loggedInPlayers:
+            if x.tricks_taken == x.bid:
+                x.score += (20 + (x.bid * 10))
+            else:
+                x.score -= abs(bid - tricks_taken)
+
+#find the winner
+loggedInPlayers.reduce(lambda a, b: a if (a.score > b.score) else b)
+
+
+
+
+
+
+
+
+
+
+
+
