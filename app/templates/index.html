@@ -3,34 +3,38 @@
     <title>wizard!</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>
-    <script type="text/javascript" charset="utf-8">
+    <script>
         $(document).ready(function() {
-            namespace = '/';
+            namespace = '/test';
 
             {% if current_user.name %}
                 var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
 
                 socket.on('connect', function () {
-                    socket.emit('user_connected', {data: {{  current_user.name.data  }} +'connected!'});
+                    socket.emit('user_connected', {data: "{{  current_user.name  }}" +' connected!'});
                 });
 
             {% endif %}
 
-            // broadcast
+            // send chat
             $('form#broadcast').submit(function(event) {
-                console.log('sent my broadcast event:' + event);
-                socket.emit('send_chat', {data: $('#broadcast_data').val()});
+                socket.emit('send_chat', {data: "{{ current_user.name }} says: " + $('#broadcast_data').val()});
                 return false;
             });
 
             // event handler for server sent data
             // the data is displayed in the "Received" section of the page
             socket.on('my response', function(msg) {
-                console.log('received my response')
-                $('#log').append('<br>Received: ' + msg.data);
+                $('#log').append('<br>' + msg.data);
+            });
+
+            socket.on('start_game', function(){
+                $('#game').append('<br>' + msg.data);
             });
         });
     </script>
+
+
   </head>
   <body>
     {% with messages = get_flashed_messages() %}
@@ -49,6 +53,7 @@
     </form>
     <p>Received:</p>
     <div id="log"></div>
+    <div id="game"></div>
   {% block content %}{% endblock %}
   </body>
 </html>

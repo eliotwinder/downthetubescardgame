@@ -7,6 +7,7 @@ from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, clos
 
 players = Player.query.all()
 logged_in_players = 0
+namespace = '/test'
 
 @app.route('/')
 @app.route('/index')
@@ -40,16 +41,14 @@ def logout():
 def load_user(id):
     return Player.query.get(int(id))
 
-@socketio.on('user_connected', namespace='/')
+@socketio.on('user_connected', namespace=namespace)
 def test_broadcast_message(message):
-    print message
     emit('my response',
          {'data': message['data']},
          broadcast=True)
 
-@socketio.on('send_chat', namespace='/')
+@socketio.on('send_chat', namespace=namespace)
 def test_broadcast_message(message):
-    print message
     emit('my response',
          {'data': message['data']},
          broadcast=True)
