@@ -28,7 +28,8 @@
                 $('#log').append('<br>' + msg.data);
             });
 
-            socket.on('start_game', function(){
+            socket.on('start_game', function(msg){
+                console.log(msg);
                 $('#game').append('<br>' + msg.data);
             });
         });

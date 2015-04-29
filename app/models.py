@@ -1,5 +1,8 @@
-from app import db
+from app import db, socketio
+from flask import Flask
 from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, close_room, disconnect
+
+namespace = "/test"
 
 class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -54,7 +57,7 @@ class Game(db.Model):
     @classmethod
     def decrement_counter(cls):
         game = cls.get_latest_counter()
-        game.player_count -= 1
+        game.player_count = 0
         print "player count:" + str(game.player_count)
         db.session.commit()
 
@@ -62,7 +65,7 @@ class Game(db.Model):
     def create_game(cls):
         players = Player.query.all()
         game = cls.get_latest_counter()
-        emit('start_game',
+        socketio.emit('start_game',
             {'data': game.player_count},
-             broadcast=True)
+            namespace='/test')
 
