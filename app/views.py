@@ -13,7 +13,11 @@ namespace = '/test'
 @app.route('/index')
 @login_required
 def index():
-    return render_template('index.html', players=players)
+    game_started = False
+    game = Game.get_latest_counter()
+    if game.player_count == 2:
+            game_started = True
+    return render_template('index.html', players=players, started = game_started)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -52,3 +56,11 @@ def test_broadcast_message(message):
     emit('my response',
          {'data': message['data']},
          broadcast=True)
+
+@socketio.on('start_game', namespace=namespace)
+def trigger_start():
+    Game.create_game()
+
+@socketio.on('logout_all', namespace=namespace)
+def log_us_all_out(msg):
+    emit('redirect', {'url': url_for('logout')}, broadcast=True)
