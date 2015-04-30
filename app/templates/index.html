@@ -4,56 +4,10 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>
     <script>
-        $(document).ready(function() {
-            namespace = '/test';
-            var currentUser = '{{  current_user.name  }}';
-            {% if current_user.name %}
-                var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
-
-                socket.on('connect', function () {
-                    socket.emit('user_connected', {data: "{{  current_user.name  }}" +' connected!'});
-
-                });
-
-                 {% if started %}
-                    socket.emit('start_game');
-                {% endif %}
-            {% endif %}
-
-            // send chat
-            $('form#broadcast').submit(function(event) {
-                socket.emit('send_chat', {data: "{{ current_user.name }} says: " + $('#broadcast_data').val()});
-                return false;
-            });
-
-            $('form#logoutall').submit(function(event) {
-                socket.emit('logout_all', {data: "eliot"});
-                return false;
-            });
-
-            // event handler for server sent data
-            // the data is displayed in the "Received" section of the page
-            socket.on('my response', function(msg) {
-                $('#log').append('<br>' + msg.data);
-            });
-
-            socket.on('start_game', function(msg){
-                $('#log').append('<br>' + msg.data);
-            });
-
-            socket.on('refresh', function(msg){
-                gameData = JSON.parse(msg))
-            });
-
-            //redirect event listener - data should be 'url': url_for('redirect_page')
-            socket.on('redirect', function (data) {
-                window.location = data.url;
-            });
-
-        });
+        window.current_user_name = '{{ current_user.name }}';
+        window.started = {{ "true" if started else "false" }};
     </script>
-
-
+    <script type="text/javascript" src="{{ url_for('static', filename='js/wizard.js') }}"></script>
   </head>
   <body>
     {% with messages = get_flashed_messages() %}
@@ -65,8 +19,8 @@
             </ul>
         {%  endif %}
     {%  endwith %}
-    <form id="logoutall">
-        <input type="submit" value="logout everyone">
+    <form id="startgame">
+        <input type="submit" value="start!">
     </form>
       <h1> hello {{ current_user.name }} </h1>
     <form id="broadcast">
@@ -76,10 +30,7 @@
     <p>Received:</p>
     <div id="log"></div>
     <div id="game">
-        <div id="playspace">
-            <div id="opponents"></div>
-            <div id="thisplayer"></div>
-        </div>
+        <div id="players"></div>
         <div id="score"></div>
     </div>
   {% block content %}{% endblock %}
