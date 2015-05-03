@@ -18,9 +18,6 @@
     function getOpposingPlayers(blob){
         var opposingPlayers = JSON.parse(blob).data.players;
         delete opposingPlayers[myName];
-        for (var player in opposingPlayers){
-            delete opposingPlayers[player].hand;
-        }
         return opposingPlayers;
     }
 
@@ -47,23 +44,32 @@
         $('#log').append('<br>' + msg.data);
     });
 
+    socket.on('request_name', function(msg) {
+        socket.emit('send_name', {data: myName})
+    });
+
     socket.on('start_game', function(msg){
         $('#log').append('<br>' + msg.data.log);
         playerData = msg.data.players;
-        players = [];
+        var players = [];
         for(var player in playerData) {
            players.push(playerData[player]);
         }
+
         $('#players').empty();
         for(var i = 0; i < players.length; i++){
             $('#players').append(
-                '<div id=' + players[i].name + '><div class=\'tricks_taken\'></div><div class=\'bid\'></div></div>');
+                '<div id=' + players[i].name + '><p>'+ players[i].name +'<br></p>Taken:<br><div class=\'tricks_taken\'></div>Bid:<br><div class=\'bid\'></div></div>');
+            $('#scorecard').append(
+                '<div id=' + (players[i].name + "score") + '><p>'+ players[i].name +'<br></p><div class=\'scround\'>R<br></div><div class=\'sctrickstaken\'>T<br></div><div class=\'scbid\'>B<br></div><div class="score">S<br></div></div>');
         }
     });
 
     socket.on('refresh', function(msg){
-        opposingPlayers = getOpposingPlayers(msg);
-        myData = getMyData(msg);
+        var players = msg.data.players;
+        var gameData = msg.data.game;
+        console.log(players)
+        console.log(gameData)
     });
 
     //redirect event listener - data should be 'url': url_for('redirect_page')

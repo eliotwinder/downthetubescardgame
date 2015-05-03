@@ -1,6 +1,8 @@
 from flask import render_template, flash, redirect, session, url_for, request, g
 from flask.ext.login import login_user, logout_user, current_user, login_required
 from app import app, db, lm, socketio
+import yaml
+import json
 from forms import LoginForm
 from models import Player, Game
 from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, close_room, disconnect
@@ -9,15 +11,12 @@ players = Player.query.all()
 logged_in_players = 0
 namespace = '/test'
 
+# hooks for json decoding
 @app.route('/')
 @app.route('/index')
 @login_required
 def index():
-    game_started = False
-    game = Game.get_latest_counter()
-    if game.player_count == 2:
-            game_started = True
-    return render_template('index.html', players=players, started = game_started)
+    return render_template('index.html', players=players, started=False)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -26,7 +25,6 @@ def login():
         user = Player.query.filter(Player.name == form.name.data).first()
         login_user(user, remember=True)
         flash('Logged in!')
-        Game.increment_counter()
         return redirect(url_for('index'))
     else:
         flash('not logged in')
@@ -37,7 +35,6 @@ def login():
 
 @app.route('/logout')
 def logout():
-    Game.decrement_counter()
     logout_user()
     return redirect(url_for('index'))
 
@@ -64,3 +61,7 @@ def trigger_start():
 @socketio.on('logout_all', namespace=namespace)
 def log_us_all_out(msg):
     emit('redirect', {'url': url_for('logout')}, broadcast=True)
+
+@socketio.on('send_name', namespace=namespace)
+def send_data(msg):
+    Game.send_game_data(msg['data'])

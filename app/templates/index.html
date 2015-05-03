@@ -8,6 +8,7 @@
         window.started = {{ "true" if started else "false" }};
     </script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/wizard.js') }}"></script>
+    <link href="{{ url_for('static', filename='css/wizard.css') }}" rel="stylesheet" type="text/css">
   </head>
   <body>
     {% with messages = get_flashed_messages() %}
@@ -19,19 +20,20 @@
             </ul>
         {%  endif %}
     {%  endwith %}
-    <form id="startgame">
-        <input type="submit" value="start!">
-    </form>
-      <h1> hello {{ current_user.name }} </h1>
-    <form id="broadcast">
-      <input type="text" name="broadcast_data" id="broadcast_data" placeholder="Message">
-      <input type="submit" value="Broadcast">
-    </form>
-    <p>Received:</p>
-    <div id="log"></div>
-    <div id="game">
+    <div id="container">
+        <form id="startgame">
+            <input type="submit" value="start!">
+        </form>
+          <h1> hello {{ current_user.name }} </h1>
         <div id="players"></div>
-        <div id="score"></div>
+        <div id="log">
+            <form id="broadcast">
+          <input type="text" name="broadcast_data" id="broadcast_data" placeholder="Message">
+          <input type="submit" value="Broadcast">
+        </form>
+            <p>Received:</p>
+        </div><br><br>
+        <div id="scorecard"></div>
     </div>
   {% block content %}{% endblock %}
   </body>
