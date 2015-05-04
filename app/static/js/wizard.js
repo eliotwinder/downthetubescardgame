@@ -1,6 +1,7 @@
  $(document).ready(function() {
     namespace = '/test';
     var myName = window.current_user_name;
+
     function decodeScores(score) {
         result = score.split('.');
         for (var i = 0; i < result.length; i++ ) {
@@ -9,8 +10,6 @@
         }
         return result;
     }
-
-
 
     if (myName){
         var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
@@ -44,30 +43,59 @@
 
     socket.on('start_game', function(msg){
         $('#log').append('<br>' + msg.data.log);
-        var players = msg.data.players;
+        var players = msg.data.scores;
 
 
         $('#players, #scorecard').empty();
         for(var i = 0; i < players.length; i++){
             $('#players').append(
-                '<div id=' + players[i] + '><p>'+ players[i] +'<br></p>Taken:<br><div class=\'tricks_taken\'></div>Bid:<br><div class=\'bid\'></div></div>');
-            $('#scorecard').append(
-                '<div id=' + (players[i] + "score") + '><p>'+ players[i] +'<br></p><div class=\'scround\'>R<br></div><div class=\'sctrickstaken\'>T<br></div><div class=\'scbid\'>B<br></div><div class="score">S<br></div></div>');
+                '<div class="playerspace"><p>'+ players[i] +'</p><div class=\'dealer\'>dealer<br></div>Taken: <div class=\'tricks_taken\'></div><br>Bid: <div class=\'bid\'></div><br>Hand:<br><div class=\'hand\'></div></div>');
+            $('#scorecard').append("<div class='score'><p>"+ players[i] +"<br></p><div class='scoreheader'><div class=\'scround\'>R<br></div><div class=\'sctrickstaken\'>T<br></div><div class=\'scbid\'>B<br></div><div class=\'scscore\'>S<br></div></div></div>");
         }
+        $('.score').each(function() {
+            for (var i = 1; i < numOfRounds + 1; i++) {
+                $(this).append("<div class='scorerow' data-row=" + i + "><div class=\'scround\'>" + i +"<br></div><div class=\'sctrickstaken\'><br></div><div class=\'scbid\'><br></div><div class=scscore><br></div></div>");
+            }
+        });
     });
 
     socket.on('refresh', function(msg) {
         var scores = msg.data.scores;
         var gameData = msg.data.game;
-        console.log(JSON.parse(scores));
-//        for (var i = 0; i < scores.length; i++){
-//            console.log(scores[i]);
-//        }
-        console.log(gameData);
+        dealer = (gameData.round % 4) - 1;
+
+        $('.dealer').each(function (i) {
+            $(this).hide();
+            if (i == dealer) {
+                $(this).show();
+            }
+        })
+
+        $('#round').html(gameData['round']);
+
+        $('.score').each(function( i ){
+           $(this).find('.scorerow').each(function( j ){
+               if(typeof scores[i].score[j] != 'undefined') {
+                   $(this).find('.sctrickstaken').html(scores[i].score[j][0]);
+                   $(this).find('.scbid').html(scores[i].score[j][1]);
+                   $(this).find('.scscore').html(scores[i].score[j][2]);
+               }
+           });
+        });
+
+        $('.playerspace').each(function( i ) {
+            $(this).find('.tricks_taken').html(scores[i].score[gameData['round'] - 1][0]);
+            $(this).find('.bid').html(scores[i].score[gameData['round'] - 1][1]);
+            $(this).find('.hand').html(scores[i].score[gameData['round'] - 1][3].split(' '));
+        });
+    });
+
+    socket.on('server_message', function(msg) {
+        $('#log').append('<br>' + msg.data)
     });
 
     //redirect event listener - data should be 'url': url_for('redirect_page')
     socket.on('redirect', function (data) {
-        window.location = data.url;
+        window.location = data.url
     });
 });

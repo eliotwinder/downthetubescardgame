@@ -6,6 +6,7 @@
     <script>
         window.current_user_name = '{{ current_user.name }}';
         window.started = {{ "true" if started else "false" }};
+        window.numOfRounds = 15;
     </script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/wizard.js') }}"></script>
     <link href="{{ url_for('static', filename='css/wizard.css') }}" rel="stylesheet" type="text/css">
@@ -33,6 +34,7 @@
         </form>
             <p>Received:</p>
         </div><br><br>
+        <div id="roundlabel">round: <div id="round">0</div></div><br>
         <div id="scorecard"></div>
     </div>
   {% block content %}{% endblock %}

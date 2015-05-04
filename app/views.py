@@ -61,7 +61,3 @@ def trigger_start():
 @socketio.on('logout_all', namespace=namespace)
 def log_us_all_out(msg):
     emit('redirect', {'url': url_for('logout')}, broadcast=True)
-
-@socketio.on('send_name', namespace=namespace)
-def send_data(msg):
-    Game.send_game_data(msg['data'])
