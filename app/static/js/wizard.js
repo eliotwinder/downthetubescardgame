@@ -1,6 +1,17 @@
  $(document).ready(function() {
     namespace = '/test';
     var myName = window.current_user_name;
+    function decodeScores(score) {
+        result = score.split('.');
+        for (var i = 0; i < result.length; i++ ) {
+            holder = result[i].split(',');
+            result[i] = holder;
+        }
+        return result;
+    }
+
+
+
     if (myName){
         var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
 
@@ -12,19 +23,6 @@
         if (window.started) {
             socket.emit('start_game');
         }
-    }
-
-    //get opposing players from JSON message with player property of json
-    function getOpposingPlayers(blob){
-        var opposingPlayers = JSON.parse(blob).data.players;
-        delete opposingPlayers[myName];
-        return opposingPlayers;
-    }
-
-    //helper function to parse JSON received from server
-    function getMyData(blob){
-        var myData = JSON.parse(blob).data.players[myName];
-        return myData;
     }
 
     // send chat
@@ -44,17 +42,12 @@
         $('#log').append('<br>' + msg.data);
     });
 
-    socket.on('request_name', function(msg) {
-        socket.emit('send_name', {data: myName})
-    });
-
     socket.on('start_game', function(msg){
-        console.log(msg);
         $('#log').append('<br>' + msg.data.log);
         var players = msg.data.players;
 
 
-        $('#players').empty();
+        $('#players, #scorecard').empty();
         for(var i = 0; i < players.length; i++){
             $('#players').append(
                 '<div id=' + players[i] + '><p>'+ players[i] +'<br></p>Taken:<br><div class=\'tricks_taken\'></div>Bid:<br><div class=\'bid\'></div></div>');
@@ -63,11 +56,14 @@
         }
     });
 
-    socket.on('refresh', function(msg){
-        var players = msg.data.players;
+    socket.on('refresh', function(msg) {
+        var scores = msg.data.scores;
         var gameData = msg.data.game;
-        console.log(players)
-        console.log(gameData)
+        console.log(JSON.parse(scores));
+//        for (var i = 0; i < scores.length; i++){
+//            console.log(scores[i]);
+//        }
+        console.log(gameData);
     });
 
     //redirect event listener - data should be 'url': url_for('redirect_page')

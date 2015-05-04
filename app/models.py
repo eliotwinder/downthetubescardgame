@@ -1,5 +1,6 @@
 from app import db, socketio
 import json, random
+from flask.ext.login import current_user
 from sqlalchemy import desc
 from flask import redirect, url_for, jsonify
 from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, close_room, disconnect
@@ -60,12 +61,11 @@ class Game(db.Model):
         positions = range(0, number_of_players)
         random.shuffle(positions)
         raw_players = Player.query.all()
-        print [player.name for player in raw_players]
         for player in raw_players:
             p = Score(player=player.name, game=game.id, position=positions.pop(), score="0,0,0,''." )
             db.session.add(p)
         db.session.commit()
-        send_data = {'data': {'log': 'game started with',
+        send_data = {'data': {'log': 'game started',
                                 'players': [player.name for player in raw_players]
                         }
                     }
@@ -83,35 +83,31 @@ class Game(db.Model):
         game.round += 1
         db.session.commit()
         #request name function initializes refresh data
-        socketio.emit('request_name', namespace=namespace)
+        Game.send_game_data()
 
     @classmethod
-    def send_game_data(cls, name):
+    def send_game_data(cls):
         gameinfo = cls.get_latest_counter().get_game_info()
-        raw_scores = cls.get_latest_counter().scores.all()
+        raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
         for score in raw_scores:
-            if score.player != name:
+            if score.player != current_user.name:
                 holder = hand_to_list(score.score)
-                for x in range(len(holder)):
+                for i, x in enumerate(holder):
                     try:
-                        holder[x][3] = 'fdsafdsfsd'
+                        holder[i][3] = 'redacted'
                     except IndexError:
                         pass
                 score.score = hand_to_string(holder)
-
-        cls.get_latest_counter().scores.all()
-                # if x in holder:
-                #     hand_to_string(holder)
-                #     print type(holder[x])
-                # print holder
-        # send_data = {'data': {'scores': players,
-        #                       'game': gameinfo,
-        #                       'numberOfPlayers': number_of_players
-        #             }
-        # }
-        # socketio.emit('refresh',
-        #               send_data,
-        #               namespace=namespace)
+        scores = [score.get_score() for score in raw_scores]
+        scores.reverse()
+        print scores
+        send_data = {'data': {'scores': json.dumps(scores),
+                              'game': gameinfo,
+                    }
+        }
+        socketio.emit('refresh',
+                      send_data,
+                      namespace=namespace)
 
 
 class Player(db.Model):
