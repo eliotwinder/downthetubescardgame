@@ -4,7 +4,7 @@ from app import app, db, lm, socketio
 import yaml
 import json
 from forms import LoginForm
-from models import Player, Game
+from models import Player, Game, Score
 from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, close_room, disconnect
 
 players = Player.query.all()

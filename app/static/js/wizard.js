@@ -49,19 +49,17 @@
     });
 
     socket.on('start_game', function(msg){
+        console.log(msg);
         $('#log').append('<br>' + msg.data.log);
-        playerData = msg.data.players;
-        var players = [];
-        for(var player in playerData) {
-           players.push(playerData[player]);
-        }
+        var players = msg.data.players;
+
 
         $('#players').empty();
         for(var i = 0; i < players.length; i++){
             $('#players').append(
-                '<div id=' + players[i].name + '><p>'+ players[i].name +'<br></p>Taken:<br><div class=\'tricks_taken\'></div>Bid:<br><div class=\'bid\'></div></div>');
+                '<div id=' + players[i] + '><p>'+ players[i] +'<br></p>Taken:<br><div class=\'tricks_taken\'></div>Bid:<br><div class=\'bid\'></div></div>');
             $('#scorecard').append(
-                '<div id=' + (players[i].name + "score") + '><p>'+ players[i].name +'<br></p><div class=\'scround\'>R<br></div><div class=\'sctrickstaken\'>T<br></div><div class=\'scbid\'>B<br></div><div class="score">S<br></div></div>');
+                '<div id=' + (players[i] + "score") + '><p>'+ players[i] +'<br></p><div class=\'scround\'>R<br></div><div class=\'sctrickstaken\'>T<br></div><div class=\'scbid\'>B<br></div><div class="score">S<br></div></div>');
         }
     });
 
