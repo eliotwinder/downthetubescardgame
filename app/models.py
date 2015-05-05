@@ -1,5 +1,5 @@
 from app import db, socketio
-import json, random
+import json, random, views
 from flask.ext.login import current_user
 from random import shuffle
 from sqlalchemy import desc
@@ -9,6 +9,7 @@ from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, clos
 namespace = "/test"
 number_of_players = 4
 number_of_rounds = 4
+usertracker = []
 
 
 def hand_to_list(hand):
@@ -23,14 +24,6 @@ def hand_to_string(hand):
     for i, x in enumerate(hand):
         hand[i] = ",".join(x)
     return ".".join(hand)
-
-def test_to_string(hand):
-    print hand
-    # for i, x in enumerate(hand):
-    #     print i
-    #     print x
-    #     hand[i] = ",".join(x)
-    # return ".".join(hand)
 
 
 class Game(db.Model):
@@ -98,19 +91,18 @@ class Game(db.Model):
     def deal(cls):
         deck = ["C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "JJJ", "WWW", "D01", "D02", "D03", "D04", "D05", "D06", "D07", "D08", "D09", "D10", "D11", "D12", "D13", "JJJ", "WWW", "H01", "H02", "H03", "H04", "H05", "H06", "H07", "H08", "H09", "H10", "H11", "H12", "H13", "JJJ", "WWW", "S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10", "S11", "S12", "S13", "JJJ", "WWW"]
         shuffle(deck)
-        deck = sorted(deck)
         round = cls.get_latest_counter().round
         raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
         raw_scores.reverse()
         for x in raw_scores:
             temp_hand = hand_to_list(x.score)
+            holder = []
             for i in range(round):
-                holder = []
                 holder.append(deck.pop(0))
-                holder = " ".join(holder)
-                temp_hand[i][3] = holder
-                test_to_string(temp_hand)
-                x.score = hand_to_string(temp_hand)
+            holder = sorted(holder)
+            holder = " ".join(holder)
+            temp_hand[i][3] = holder
+            x.score = hand_to_string(temp_hand)
         db.session.commit()
 
 
@@ -121,26 +113,28 @@ class Game(db.Model):
 
     @classmethod
     def send_game_data(cls):
-        gameinfo = cls.get_latest_counter().get_game_info()
-        raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
-        for score in raw_scores:
-            if score.player != current_user.name:
-                holder = hand_to_list(score.score)
-                for i, x in enumerate(holder):
-                    try:
-                        holder[i][3] = 'redacted'
-                    except IndexError:
-                        pass
-                score.score = hand_to_string(holder)
-        scores = [score.get_score() for score in raw_scores]
-        scores.reverse()
-        send_data = {'data': {'scores': scores,
-                              'game': gameinfo,
-                    }
-        }
-        socketio.emit('refresh',
-                      send_data,
-                      namespace=namespace)
+        for player in usertracker:
+            gameinfo = cls.get_latest_counter().get_game_info()
+            raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
+            scores = [score.get_score() for score in raw_scores]
+            scores.reverse()
+            for score in scores:
+                if score['player'] != player:
+                    holder = score['score']
+                    for i, x in enumerate(holder):
+                        try:
+                            holder[i][3] = 'redacted'
+                        except IndexError:
+                            pass
+                    score['score'] = holder
+            send_data = {'data': {'scores': scores,
+                                  'game': gameinfo,
+                        }
+            }
+            socketio.emit('refresh',
+                          send_data,
+                          namespace=namespace,
+                          room=player)
 
 
 class Player(db.Model):

@@ -4,13 +4,12 @@ from app import app, db, lm, socketio
 import yaml
 import json
 from forms import LoginForm
-from models import Player, Game, Score
+from models import Player, Game, Score, usertracker
 from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, close_room, disconnect
 
 players = Player.query.all()
 logged_in_players = 0
 namespace = '/test'
-usertracker = []
 
 # hooks for json decoding
 @app.route('/')
@@ -47,7 +46,7 @@ def load_user(id):
 def test_broadcast_message(message):
     if message['data'] not in usertracker:
         usertracker.append(message['data'])
-    print usertracker
+    join_room(message['data'])
     emit('my response',
          {'data': message['data']},
          broadcast=True)

@@ -4,7 +4,6 @@ from flask.ext.login import LoginManager
 from flask.ext.socketio import SocketIO
 
 
-
 def _decode_list(data):
     rv = []
     for item in data:

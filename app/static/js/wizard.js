@@ -2,6 +2,11 @@
     namespace = '/test';
     var myName = window.current_user_name;
 
+    window.setInterval(function() {
+      var elem = document.getElementById('log');
+      elem.scrollTop = elem.scrollHeight;
+    }, 5000);
+
     function decodeScores(score) {
         result = score.split('.');
         for (var i = 0; i < result.length; i++ ) {
@@ -61,7 +66,6 @@
     socket.on('refresh', function(msg) {
         var scores = msg.data.scores;
         var gameData = msg.data.game;
-        console.log(gameData);
         var dealer = (gameData.round % 4) - 1;
         var turn = gameData.turn;
 
