@@ -10,6 +10,7 @@ from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, clos
 players = Player.query.all()
 logged_in_players = 0
 namespace = '/test'
+usertracker = []
 
 # hooks for json decoding
 @app.route('/')
@@ -44,6 +45,9 @@ def load_user(id):
 
 @socketio.on('user_connected', namespace=namespace)
 def test_broadcast_message(message):
+    if message['data'] not in usertracker:
+        usertracker.append(message['data'])
+    print usertracker
     emit('my response',
          {'data': message['data']},
          broadcast=True)

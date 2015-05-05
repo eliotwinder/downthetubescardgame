@@ -1,6 +1,7 @@
 from app import db, socketio
 import json, random
 from flask.ext.login import current_user
+from random import shuffle
 from sqlalchemy import desc
 from flask import redirect, url_for, jsonify
 from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, close_room, disconnect
@@ -8,6 +9,7 @@ from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, clos
 namespace = "/test"
 number_of_players = 4
 number_of_rounds = 4
+
 
 def hand_to_list(hand):
     #hand ="1,1,20,'JJJ WWW'.1,1,20,'JJJ WWW'
@@ -22,11 +24,19 @@ def hand_to_string(hand):
         hand[i] = ",".join(x)
     return ".".join(hand)
 
+def test_to_string(hand):
+    print hand
+    # for i, x in enumerate(hand):
+    #     print i
+    #     print x
+    #     hand[i] = ",".join(x)
+    # return ".".join(hand)
+
 
 class Game(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     round = db.Column(db.Integer, default=0)
-    turn = db.Column(db.Integer, default=1)
+    turn = db.Column(db.Integer, default=0)
     player_count = db.Column(db.Integer, default=0)
     game_started = db.Column(db.Boolean, default=False)
     time_started = db.Column(db.DateTime)
@@ -37,8 +47,9 @@ class Game(db.Model):
         return "'game# %r" % str(self.id)
 
     def get_game_info(self):
-        return dict(id=self.id, round=self.round, player_count=self.player_count, game_started=self.game_started,
+        return dict(id=self.id, round=self.round, turn=self.turn, player_count=self.player_count, game_started=self.game_started,
                     time_started=self.time_started, game_ended=self.game_ended)
+
 
     @classmethod
     def get_latest_counter(cls):
@@ -53,7 +64,7 @@ class Game(db.Model):
         random.shuffle(positions)
         raw_players = Player.query.all()
         for player in raw_players:
-            p = Score(player=player.name, game=game.id, position=positions.pop(), score="0,0,0,''." )
+            p = Score(player=player.name, game=game.id, position=positions.pop(), score="0,0,0,." )
             db.session.add(p)
         db.session.commit()
         raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
@@ -70,22 +81,43 @@ class Game(db.Model):
 
     @classmethod
     def play_round(cls):
+        game = cls.get_latest_counter()
         if round == number_of_rounds:
             print "game over!"
             return
-        game = cls.get_latest_counter()
         game.round += 1
-        game.turn = game.round + 1
+        game.turn = game.round
         db.session.commit()
         #request name function initializes refresh data
         socketio.emit('server_message', {'data': 'Round' + str(game.round) + "...FIGHT!!!"}, namespace=namespace)
+        Game.deal()
         Game.send_game_data()
         Game.play_trick()
 
     @classmethod
+    def deal(cls):
+        deck = ["C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "JJJ", "WWW", "D01", "D02", "D03", "D04", "D05", "D06", "D07", "D08", "D09", "D10", "D11", "D12", "D13", "JJJ", "WWW", "H01", "H02", "H03", "H04", "H05", "H06", "H07", "H08", "H09", "H10", "H11", "H12", "H13", "JJJ", "WWW", "S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10", "S11", "S12", "S13", "JJJ", "WWW"]
+        shuffle(deck)
+        deck = sorted(deck)
+        round = cls.get_latest_counter().round
+        raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
+        raw_scores.reverse()
+        for x in raw_scores:
+            temp_hand = hand_to_list(x.score)
+            for i in range(round):
+                holder = []
+                holder.append(deck.pop(0))
+                holder = " ".join(holder)
+                temp_hand[i][3] = holder
+                test_to_string(temp_hand)
+                x.score = hand_to_string(temp_hand)
+        db.session.commit()
+
+
+    @classmethod
     def play_trick(cls):
         game = cls.get_latest_counter()
-        print game.turn
+
 
     @classmethod
     def send_game_data(cls):

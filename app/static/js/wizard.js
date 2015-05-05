@@ -15,8 +15,7 @@
         var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
 
         socket.on('connect', function () {
-            socket.emit('user_connected', {data: myName+' connected!'});
-
+            socket.emit('user_connected', {data: myName});
         });
 
         if (window.started) {
@@ -38,7 +37,7 @@
     // event handler for server sent data
     // the data is displayed in the "Received" section of the page
     socket.on('my response', function(msg) {
-        $('#log').append('<br>' + msg.data);
+        $('#log').append('<br>' + msg.data + " connected!");
     });
 
     socket.on('start_game', function(msg){
@@ -49,7 +48,7 @@
         $('#players, #scorecard').empty();
         for(var i = 0; i < players.length; i++){
             $('#players').append(
-                '<div class="playerspace"><p>'+ players[i] +'</p><div class=\'dealer\'>dealer<br></div>Taken: <div class=\'tricks_taken\'></div><br>Bid: <div class=\'bid\'></div><br>Hand:<br><div class=\'hand\'></div></div>');
+                '<div class="playerspace"><div>'+ players[i] +'</div><div class=\'dealer\'>dealer</div><br>Taken: <div class=\'tricks_taken\'></div><div class=\'turn\'>turn</div><br>Bid: <div class=\'bid\'></div><br>Hand:<br><div class=\'hand\'></div></div>');
             $('#scorecard').append("<div class='score'><p>"+ players[i] +"<br></p><div class='scoreheader'><div class=\'scround\'>R<br></div><div class=\'sctrickstaken\'>T<br></div><div class=\'scbid\'>B<br></div><div class=\'scscore\'>S<br></div></div></div>");
         }
         $('.score').each(function() {
@@ -62,14 +61,23 @@
     socket.on('refresh', function(msg) {
         var scores = msg.data.scores;
         var gameData = msg.data.game;
-        dealer = (gameData.round % 4) - 1;
+        console.log(gameData);
+        var dealer = (gameData.round % 4) - 1;
+        var turn = gameData.turn;
 
         $('.dealer').each(function (i) {
             $(this).hide();
             if (i == dealer) {
                 $(this).show();
             }
-        })
+        });
+
+        $('.turn').each(function (i) {
+            $(this).hide();
+            if (i == turn) {
+                $(this).show();
+            }
+        });
 
         $('#round').html(gameData['round']);
 
