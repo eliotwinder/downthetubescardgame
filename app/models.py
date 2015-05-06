@@ -7,11 +7,11 @@ from flask import redirect, url_for, jsonify
 from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, close_room, disconnect
 
 namespace = "/test"
-number_of_players = 4
+number_of_players = 2
 number_of_rounds = 4
 usertracker = []
 
-
+#functions for translating hands and played cards
 def hand_to_list(hand):
     #hand ="1,1,20,'JJJ WWW'.1,1,20,'JJJ WWW'
     hands = hand.split(".")
@@ -34,13 +34,15 @@ class Game(db.Model):
     game_started = db.Column(db.Boolean, default=False)
     time_started = db.Column(db.DateTime)
     game_ended = db.Column(db.Boolean, default=False)
+    played_cards = db.Column(db.String, default="")
     scores = db.relationship('Score', backref='games', lazy='dynamic')
 
+
     def __repr__(self):
-        return "'game# %r" % str(self.id)
+        return "game# %r" % str(self.id)
 
     def get_game_info(self):
-        return dict(id=self.id, round=self.round, turn=self.turn, player_count=self.player_count, game_started=self.game_started,
+        return dict(id=self.id, round=self.round, turn=self.turn, played_cards=self.played_cards, player_count=self.player_count, game_started=self.game_started,
                     time_started=self.time_started, game_ended=self.game_ended)
 
 
@@ -48,10 +50,9 @@ class Game(db.Model):
     def get_latest_counter(cls):
         return Game.query.order_by('id desc').first()
 
-
     @classmethod
     def create_game(cls):
-        game = Game(game_started=True, round=0)
+        game = Game(game_started=True)
         db.session.add(game)
         positions = range(0, number_of_players)
         random.shuffle(positions)
@@ -63,10 +64,7 @@ class Game(db.Model):
         raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
         raw_scores.reverse()
         scores = [score.player for score in raw_scores]
-        send_data = {'data': {'log': 'game started',
-                                'scores': scores
-                        }
-                    }
+        send_data = {'data': {'log': 'game started', 'scores': scores}}
         socketio.emit('start_game',
                       send_data,
                       namespace=namespace)
@@ -75,17 +73,17 @@ class Game(db.Model):
     @classmethod
     def play_round(cls):
         game = cls.get_latest_counter()
-        if round == number_of_rounds:
+        if game.round == number_of_rounds:
             print "game over!"
             return
         game.round += 1
         game.turn = game.round
         db.session.commit()
-        #request name function initializes refresh data
         socketio.emit('server_message', {'data': 'Round' + str(game.round) + "...FIGHT!!!"}, namespace=namespace)
         Game.deal()
-        Game.send_game_data()
-        Game.play_trick()
+        Game.send_start_data()
+        Game.get_bid(0)
+
 
     @classmethod
     def deal(cls):
@@ -105,10 +103,112 @@ class Game(db.Model):
             x.score = hand_to_string(temp_hand)
         db.session.commit()
 
+    @classmethod
+    def get_bid(cls, bidder):
+        game = cls.get_latest_counter()
+        scores = cls.get_latest_counter().scores.order_by('position desc').all()
+        scores.reverse()
+        game.send_game_data()
+        send_data = {
+            'data': {
+                'rdnumber': game.round,
+                'turntobid': (game.round + bidder) % number_of_players,
+                'bidder': bidder
+            }
+        }
+        socketio.emit(
+            'bidder',
+            send_data,
+            namespace=namespace)
+
+        socketio.emit(
+            'your_bid',
+            send_data,
+            namespace=namespace,
+            room=scores[(game.turn + bidder) % number_of_players].player
+        )
 
     @classmethod
-    def play_trick(cls):
+    def receive_bid(cls, bidder, bid):
         game = cls.get_latest_counter()
+        scores = cls.get_latest_counter().scores.order_by('position desc').all()
+        scores.reverse()
+        whobid = (bidder + game.round) % number_of_players
+        socketio.emit(
+            'server_message',
+            {'data': scores[whobid].player + ' bid ' + bid},
+            namespace=namespace)
+
+        temp_hand = hand_to_list(scores[whobid].score)
+        temp_hand[game.round - 1][1] = bid
+        temp_hand = hand_to_string(temp_hand)
+        scores[whobid].score = temp_hand
+        db.session.commit()
+
+        if bidder < number_of_players - 1:
+            Game.get_bid(bidder + 1)
+        else:
+            print 'we made it'
+            Game.play_turn()
+
+
+    @classmethod
+    def play_turn(cls):
+        Game.send_game_data()
+        game = cls.get_latest_counter()
+        scores = cls.get_latest_counter().scores.order_by('position desc').all()
+        scores.reverse()
+        socketio.emit(
+            'your_turn',
+            {'data': game.turn},
+            namespace=namespace,
+            room=scores[game.turn].player)
+
+    @classmethod
+    def play_card(cls, card):
+        game = cls.get_latest_counter()
+        scores = cls.get_latest_counter().scores.order_by('position desc').all()
+        scores.reverse()
+        socketio.emit('server_message', {'data': str(scores[game.turn].player) + " played " + card}, namespace=namespace)
+        game.turn += 1
+        game.played_cards = game.played_cards+card
+
+        #if the trick isn't over
+        if (game.turn % number_of_players) - game.round != number_of_players:
+            game.played_cards += ","
+            Game.play_turn()
+        #if the trick is over
+        else:
+            game.played_cards += "."
+
+        db.session.commit()
+
+    @classmethod
+    def send_start_data(cls):
+        for player in usertracker:
+            gameinfo = cls.get_latest_counter().get_game_info()
+            raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
+            scores = [score.get_score() for score in raw_scores]
+            scores.reverse()
+            for score in scores:
+                if score['player'] != player:
+                    holder = score['score']
+                    for i, x in enumerate(holder):
+                        try:
+                            holder[i][3] = 'redacted'
+                        except IndexError:
+                            pass
+                    score['score'] = holder
+            send_data = {
+                'data': {
+                    'scores': scores,
+                    'game': gameinfo,
+                }
+            }
+            socketio.emit('start',
+                          send_data,
+                          namespace=namespace,
+                          room=player)
 
 
     @classmethod

@@ -77,17 +77,6 @@ table {
 .dealer,.turn {
     float: right;
 }
-
-.bidding {
-    background-color: orange;
-    color: white;
-}
-
-.bidding div {
-    border: thin solid #000000;
-    cursor: hand;
-}
-
 #logholder {
 	width: 300px;
 	height: 300px;

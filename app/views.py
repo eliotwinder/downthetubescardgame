@@ -47,7 +47,7 @@ def test_broadcast_message(message):
     if message['data'] not in usertracker:
         usertracker.append(message['data'])
     join_room(message['data'])
-    emit('my response',
+    emit('user_connect_message',
          {'data': message['data']},
          broadcast=True)
 
@@ -60,6 +60,14 @@ def test_broadcast_message(message):
 @socketio.on('start_game', namespace=namespace)
 def trigger_start():
     Game.create_game()
+
+@socketio.on('bidcast', namespace=namespace)
+def got_a_bid(msg):
+    Game.receive_bid(msg['data']['bidder'], msg['data']['bid'])
+
+@socketio.on('cardplayed', namespace=namespace)
+def trigger_next_turn(msg):
+    Game.play_card(msg['data'])
 
 @socketio.on('logout_all', namespace=namespace)
 def log_us_all_out(msg):
