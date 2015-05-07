@@ -58,7 +58,7 @@ class Game(db.Model):
         random.shuffle(positions)
         raw_players = Player.query.all()
         for player in raw_players:
-            p = Score(player=player.name, game=game.id, position=positions.pop(), score="0,0,0,." )
+            p = Score(player=player.name, game=game.id, position=positions.pop(), score="" )
             db.session.add(p)
         db.session.commit()
         raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
@@ -79,11 +79,12 @@ class Game(db.Model):
             return
         game.round += 1
         game.turn = game.round
+        raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
+        for score in raw_scores:
+            score.score += "0,0,0,0."
         db.session.commit()
         socketio.emit('server_message', {'data': 'Round' + str(game.round) + "...FIGHT!!!"}, namespace=namespace)
         Game.deal()
-        Game.send_start_data()
-        Game.get_bid(0)
 
 
     @classmethod
@@ -98,34 +99,42 @@ class Game(db.Model):
             temp_hand = hand_to_list(x.score)
             holder = list()
             for i in range(round):
-
-
-                ######throwing a string does not have append method
                 holder.append(deck.pop(0))
-                print holder
-                holder = sorted(holder)
-                holder = " ".join(holder)
-                temp_hand[i][3] = holder
+            holder = sorted(holder)
+            temp_hand[round - 1][3] = ",".join(holder)
             x.score = hand_to_string(temp_hand)
         game.trump = deck.pop(0)
+        db.session.commit()
+        Game.send_start_data()
         if game.trump == "WWW":
             Game.choose_a_trump()
-        db.session.commit()
+        else:
+            Game.get_bid(0)
+
 
     @classmethod
     def choose_a_trump(cls):
         game = cls.get_latest_counter()
         scores = cls.get_latest_counter().scores.order_by('position desc').all()
         scores.reverse()
-        dealer = scores[game.round]
+        dealer = scores[(game.round % number_of_players) - 1]
         socketio.emit('choose_trump', namespace=namespace, room=dealer.player)
+
+    @classmethod
+    def receive_trump(cls, trump, chooser):
+        Game.send_start_data()
+        game = cls.get_latest_counter()
+        game.trump = trump
+        db.session.commit()
+        socketio.emit('server_message', {'data': chooser + ' chose ' + trump + ' for trump'}, namespace=namespace)
+        socketio.emit('trump_chosen', {'trump': trump}, namespace=namespace)
+        Game.get_bid(0)
 
     @classmethod
     def get_bid(cls, bidder):
         game = cls.get_latest_counter()
         scores = cls.get_latest_counter().scores.order_by('position desc').all()
         scores.reverse()
-        game.send_game_data()
         send_data = {
             'data': {
                 'rdnumber': game.round,
@@ -147,6 +156,7 @@ class Game(db.Model):
 
     @classmethod
     def receive_bid(cls, bidder, bid):
+        print 'hello'
         game = cls.get_latest_counter()
         scores = cls.get_latest_counter().scores.order_by('position desc').all()
         scores.reverse()
@@ -155,13 +165,11 @@ class Game(db.Model):
             'server_message',
             {'data': scores[whobid].player + ' bid ' + bid},
             namespace=namespace)
-
         temp_hand = hand_to_list(scores[whobid].score)
         temp_hand[game.round - 1][1] = bid
         temp_hand = hand_to_string(temp_hand)
         scores[whobid].score = temp_hand
         db.session.commit()
-
         if bidder < number_of_players - 1:
             Game.get_bid(bidder + 1)
         else:
@@ -179,7 +187,7 @@ class Game(db.Model):
             'your_turn',
             {'data': game.turn},
             namespace=namespace,
-            room=scores[game.turn].player)
+            room=scores[game.turn % number_of_players].player)
 
     @classmethod
     def play_card(cls, card):
@@ -251,8 +259,6 @@ class Game(db.Model):
         else:
             Game.play_trick()
 
-
-
     @classmethod
     def score_round(cls):
         game = cls.get_latest_counter()
@@ -266,18 +272,11 @@ class Game(db.Model):
             if bid != tricks_taken:
                 stats[2] = str(int(stats[2]) - abs(int(tricks_taken) - int(bid))*10)
             else:
-                print score.player + ": " + str(20 + (int(tricks_taken) - int(bid)*10)) + " | " + str(int(stats[2]) + 20 + (int(tricks_taken) - int(bid))*10)
-                stats[2] = str(int(stats[2]) + 20 + int(tricks_taken) - int(bid)*10)
-            print score
+                stats[2] = str(int(stats[2]) + 20 + (int(tricks_taken) - int(bid))*10)
             score.score = hand_to_string(scoresheet)
         db.session.commit()
+        Game.send_game_data()
         Game.play_round()
-
-
-
-
-
-
 
     @classmethod
     def send_start_data(cls):

@@ -65,6 +65,10 @@ def trigger_start():
 def got_a_bid(msg):
     Game.receive_bid(msg['data']['bidder'], msg['data']['bid'])
 
+@socketio.on('trump_chosen', namespace=namespace)
+def trump_chosen(msg):
+    Game.receive_trump(msg['data']['trump'], msg['data']['chooser'])
+
 @socketio.on('cardplayed', namespace=namespace)
 def get_the_played_card(msg):
     Game.play_card(msg['data'])

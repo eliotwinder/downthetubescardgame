@@ -1,6 +1,7 @@
  $(document).ready(function() {
-    namespace = '/test';
+    var namespace = '/test';
     var myName = window.current_user_name;
+    var number_of_players = 2
 
     window.setInterval(function() {
       var elem = document.getElementById('log');
@@ -70,7 +71,7 @@
     socket.on('start', function(msg) {
         var scores = msg.data.scores;
         var gameData = msg.data.game;
-        var dealer = (gameData.round % 4) - 1;
+        var dealer = (gameData.round % number_of_players) - 1;
         var turn = gameData.turn;
         var trump = gameData.trump;
 
@@ -100,7 +101,10 @@
             $(this).find('.bid').html(scores[i].score[gameData['round'] - 1][1]);
 
             var hand = scores[i].score[gameData['round'] - 1][3].split(' ');
+
+
             for (var j = 0; j < hand.length; j++) {
+                $(this).find('.hand').empty()
                 $(this).find('.hand').append("<div>" + hand[j] + "</div>");
             }
 
@@ -160,10 +164,17 @@
     socket.on('choose_trump', function(){
         $('#choosetrump').show();
         $('#choosetrump div').click(function() {
-
+            socket.emit('trump_chosen', {'data': {'trump': $(this).html(), 'chooser': myName}});
+            $('#choosetrump').hide();
         })
-    })
+    });
+
+    socket.on('trump_chosen', function(msg){
+        $("#trump").append("--> " + msg['trump']);
+    });
+
     socket.on('your_bid', function(msg){
+
         bidSpace = $($(".bid").get(msg.data.turntobid));
         bidSpace.empty();
 
@@ -176,6 +187,7 @@
         });
 
 
+
         for (var i = 0; i < msg.data.rdnumber + 1; i++) {
             if (msg.data.bidder != msg.data.rdnumber) {
                 bidSpace.append("<div>&nbsp;" + i + "&nbsp;</div>");
@@ -185,7 +197,7 @@
                 }
             }
         }
-
+        console.log(msg);
         $(bidSpace.find('div')).click(function(){
             var bid = $(this).html().slice(6,7);
             $(".go").hide();
