@@ -282,31 +282,29 @@ class Game(db.Model):
     def send_start_data(cls):
         for player in usertracker:
             gameinfo = cls.get_latest_counter().get_game_info()
-            scores = cls.get_latest_counter().scores.order_by('position desc').all()
-            scores.reverse()
+            raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
+            raw_scores.reverse()
+            scores = [score.get_score() for score in raw_scores]
             for score in scores:
-                if score.player != player:
-                    holder = hand_to_list(score.score)
+                if score['player'] != player:
+                    holder = score['score']
                     for i, x in enumerate(holder):
                         try:
                             holder[i][3] = 'redacted'
                         except IndexError:
                             pass
-                    score.score = str(hand_to_string(holder))
-
+                    score['score'] = holder
+            print scores
             send_data = {
                 'data': {
-                    'scores': [score.get_score() for score in scores],
+                    'scores': scores,
                     'game': gameinfo
                 }
             }
-
-            print send_data['data']['scores']
             socketio.emit('start',
                           send_data,
                           namespace=namespace,
                           room=player)
-
 
     @classmethod
     def send_game_data(cls):

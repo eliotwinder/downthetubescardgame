@@ -9,6 +9,7 @@
     }, 1000);
 
     function decodeScores(score) {
+        console.log(score);
         result = score.split('.');
         for (var i = 0; i < result.length; i++ ) {
             holder = result[i].split(',');
@@ -75,6 +76,7 @@
         var turn = gameData.turn;
         var trump = gameData.trump;
 
+        console.log(scores);
         $('#trump').html(trump);
 
         $('#played').empty();
@@ -102,10 +104,10 @@
             $(this).find('.tricks_taken').html(scores[i].score[gameData['round'] - 1][0]);
             $(this).find('.bid').html(scores[i].score[gameData['round'] - 1][1]);
 
-            var hand = scores[i].score[gameData['round'] - 1][3].split(' ');
-
+            var hand = scores[i]['score'][gameData['round'] - 1][3].split(" ");
+            console.log(hand);
             for (var j = 0; j < hand.length; j++) {
-                $(this).find('.hand').empty()
+                $(this).find('.hand').empty();
                 $(this).find('.hand').append("<div>" + hand[j] + "</div>");
             }
 
@@ -128,7 +130,6 @@
             if (i == dealer) {
                 $(this).show();
             }
-
         });
 
         $('#round').html(gameData['round']);
