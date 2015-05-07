@@ -6,6 +6,21 @@ from sqlalchemy import desc
 from flask import redirect, url_for, jsonify
 from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, close_room, disconnect
 
+
+
+####  A WORD ABOUT NOMENCLATURE  ####
+# scoresheet = row in score table, which includes player, game, stats, position
+# stats = a string in a list of objects that each represent a round - index 0 is rd one, index 2 is rd two, etc.
+# each "round" object
+#
+#
+# [0: { tricks_taken: this_round's_tricks_taken, bid: this_round's_bid, total_score: total_score, hand: [[suit, number], card, card, card}, <--#rd1
+#                      1: { this_round's_tricks_taken, bid: this_round's_bid, total_score, hand}, <--#rd2
+#                       { this_round's_tricks_taken, bid: this_round's_bid, total_score, hand}, <--#rd3
+#
+# cards = two item list [suit, number]
+# hand = string with alternating cards and spaces "WWW S04 H13 H11 C02"
+
 namespace = "/test"
 number_of_players = 2
 number_of_rounds = 4
@@ -43,8 +58,10 @@ class Game(db.Model):
         return "game# %r" % str(self.id)
 
     def get_game_info(self):
-        return dict(id=self.id, round=self.round, turn=self.turn, played_cards=self.played_cards, player_count=self.player_count, game_started=self.game_started,
-                    time_started=self.time_started, game_ended=self.game_ended, trump=self.trump)
+        
+
+        # return dict(id=self.id, round=self.round, turn=self.turn, played_cards=self.played_cards, player_count=self.player_count, game_started=self.game_started,
+        #             time_started=self.time_started, game_ended=self.game_ended, trump=self.trump)
 
     @classmethod
     def get_latest_counter(cls):
@@ -52,13 +69,18 @@ class Game(db.Model):
 
     @classmethod
     def create_game(cls):
+        #create row in game table
         game = Game(game_started=True)
         db.session.add(game)
+        db.session.commit()
+
+        #randonly assing order that will be assigned when we create scoresheets
         positions = range(0, number_of_players)
         random.shuffle(positions)
+
         raw_players = Player.query.all()
         for player in raw_players:
-            p = Score(player=player.name, game=game.id, position=positions.pop(), score="" )
+            p = Scoresheet(player=player.name, game=game.id, position=positions.pop(), score="" )
             db.session.add(p)
         db.session.commit()
         raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
@@ -294,7 +316,6 @@ class Game(db.Model):
                         except IndexError:
                             pass
                     score['score'] = holder
-            print scores
             send_data = {
                 'data': {
                     'scores': scores,
@@ -358,7 +379,7 @@ class Player(db.Model):
     def get_player_info(self):
         return dict(name=self.name)
 
-class Score(db.Model):
+class Scoresheet(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     player = db.Column(db.Integer, db.ForeignKey('player.name'))
     game = db.Column(db.Integer, db.ForeignKey('game.id'))
@@ -370,4 +391,17 @@ class Score(db.Model):
         return "<player %r, score %r>" % (self.player, self.score)
 
     def get_score(self):
+        game = self.get_latest_counter()
+        scores = self.get_latest_counter().scores.order_by('position desc').all()
+        scores.reverse()
         return dict(id=self.id, player=self.player, game=self.game, score=hand_to_list(self.score), position=self.position)
+
+# ## to access: Game --> scoresheets -->  round
+# class Round:
+#
+#     def __init__(self):
+#
+#
+#     def get_rounds(self):
+#
+#         return

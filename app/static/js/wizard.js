@@ -76,7 +76,6 @@
         var turn = gameData.turn;
         var trump = gameData.trump;
 
-        console.log(scores);
         $('#trump').html(trump);
 
         $('#played').empty();
@@ -105,7 +104,7 @@
             $(this).find('.bid').html(scores[i].score[gameData['round'] - 1][1]);
 
             var hand = scores[i]['score'][gameData['round'] - 1][3].split(" ");
-            console.log(hand);
+
             for (var j = 0; j < hand.length; j++) {
                 $(this).find('.hand').empty();
                 $(this).find('.hand').append("<div>" + hand[j] + "</div>");
@@ -188,10 +187,17 @@
            }
         });
 
+        console.log('bidder' + msg.data.bidder);
+        console.log('rd' + msg.data.rdnumber);
+
+        if(msg.data.bidder == msg.data.rdnumber)
+            for (var j = 0; j < msg.data.rdnumber + 1; j++) {
+              if()
+            }
 
 
         for (var i = 0; i < msg.data.rdnumber + 1; i++) {
-            if (msg.data.bidder != msg.data.rdnumber) {
+            if (msg.data.bidder != number_of_players) {
                 bidSpace.append("<div>&nbsp;" + i + "&nbsp;</div>");
             } else {
                 if (i != Math.abs(totalBid - msg.data.rdnumber)) {
