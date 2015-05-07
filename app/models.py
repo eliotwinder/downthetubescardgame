@@ -96,12 +96,16 @@ class Game(db.Model):
         raw_scores.reverse()
         for x in raw_scores:
             temp_hand = hand_to_list(x.score)
-            holder = []
+            holder = list()
             for i in range(round):
+
+
+                ######throwing a string does not have append method
                 holder.append(deck.pop(0))
-            holder = sorted(holder)
-            holder = " ".join(holder)
-            temp_hand[i][3] = holder
+                print holder
+                holder = sorted(holder)
+                holder = " ".join(holder)
+                temp_hand[i][3] = holder
             x.score = hand_to_string(temp_hand)
         game.trump = deck.pop(0)
         if game.trump == "WWW":
@@ -162,11 +166,11 @@ class Game(db.Model):
             Game.get_bid(bidder + 1)
         else:
             socketio.emit('bidding_over', namespace=namespace)
-            Game.play_turn()
+            Game.play_trick()
 
 
     @classmethod
-    def play_turn(cls):
+    def play_trick(cls):
         Game.send_game_data()
         game = cls.get_latest_counter()
         scores = cls.get_latest_counter().scores.order_by('position desc').all()
@@ -189,15 +193,12 @@ class Game(db.Model):
 
         db.session.commit()
         #if the trick isn't over
-        print hand_to_list(game.played_cards)
-        print len(hand_to_list(game.played_cards)[0])
         if len(hand_to_list(game.played_cards)[0]) != number_of_players:
             game.played_cards += ","
             db.session.commit()
-            Game.play_turn()
+            Game.play_trick()
         #if the trick is over
         else:
-            print 'hello'
             game.played_cards += "."
             Game.send_game_data()
             db.session.commit()
@@ -230,25 +231,53 @@ class Game(db.Model):
                 else:
                     holder.append(0)
             winner = holder.index(max(holder))
+        #selects the next winner and next dealer by adding starting position to winning position
         winning_player = scores[(game.turn + winner) % number_of_players]
+
+        #selects the scoresheet and turns it into a list
         score_holder = hand_to_list(winning_player.score)
+
         score_holder[game.round - 1][0] = str(int(score_holder[game.round - 1][0]) + 1)
         winning_player.score = hand_to_string(score_holder)
         game.trick_counter += 1
         game.turn = (game.turn + winner) % number_of_players
         Game.send_game_data()
         db.session.commit()
-        socketio.emit('server_message', {'data': str(winning_player.player) + " won. Played cards: " + hand_to_string(played_cards) })
-        # if game.trick_counter == game.round:
-        #     Game.score_round()
+        socketio.emit(
+            'server_message',
+            {'data': str(winning_player.player) + " won with " + played_cards[winner] + ". Played cards: " + ", ".join(played_cards)}, namespace=namespace)
+        if game.trick_counter == game.round:
+            Game.score_round()
+        else:
+            Game.play_trick()
 
-        # socketio.emit('server_message', {'data': str(winner) + " won"})
+
 
     @classmethod
     def score_round(cls):
         game = cls.get_latest_counter()
         scores = cls.get_latest_counter().scores.order_by('position desc').all()
         scores.reverse()
+        for score in scores:
+            scoresheet = hand_to_list(score.score)
+            stats = scoresheet[game.round - 1]
+            tricks_taken = stats[0]
+            bid = stats[1]
+            if bid != tricks_taken:
+                stats[2] = str(int(stats[2]) - abs(int(tricks_taken) - int(bid))*10)
+            else:
+                print score.player + ": " + str(20 + (int(tricks_taken) - int(bid)*10)) + " | " + str(int(stats[2]) + 20 + (int(tricks_taken) - int(bid))*10)
+                stats[2] = str(int(stats[2]) + 20 + int(tricks_taken) - int(bid)*10)
+            print score
+            score.score = hand_to_string(scoresheet)
+        db.session.commit()
+        Game.play_round()
+
+
+
+
+
+
 
     @classmethod
     def send_start_data(cls):
