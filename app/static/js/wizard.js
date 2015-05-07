@@ -77,6 +77,8 @@
 
         $('#trump').html(trump);
 
+        $('#played').empty();
+
         $('.dealer').each(function (i) {
             $(this).hide();
             if (i == dealer) {
@@ -101,7 +103,6 @@
             $(this).find('.bid').html(scores[i].score[gameData['round'] - 1][1]);
 
             var hand = scores[i].score[gameData['round'] - 1][3].split(' ');
-
 
             for (var j = 0; j < hand.length; j++) {
                 $(this).find('.hand').empty()
@@ -190,16 +191,13 @@
 
         for (var i = 0; i < msg.data.rdnumber + 1; i++) {
             if (msg.data.bidder != msg.data.rdnumber) {
-                console.log();
                 bidSpace.append("<div>&nbsp;" + i + "&nbsp;</div>");
             } else {
-                console.log('here');
                 if (i != Math.abs(totalBid - msg.data.rdnumber)) {
                     bidSpace.append("<div>&nbsp;" + i + "&nbsp;</div>");
                 }
             }
         }
-        console.log(msg);
         $(bidSpace.find('div')).click(function(){
             var bid = $(this).html().slice(6,7);
             $(".go").hide();

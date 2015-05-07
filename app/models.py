@@ -101,7 +101,7 @@ class Game(db.Model):
             for i in range(round):
                 holder.append(deck.pop(0))
             holder = sorted(holder)
-            temp_hand[round - 1][3] = ",".join(holder)
+            temp_hand[round - 1][3] = " ".join(holder)
             x.score = hand_to_string(temp_hand)
         game.trump = deck.pop(0)
         db.session.commit()
@@ -282,24 +282,26 @@ class Game(db.Model):
     def send_start_data(cls):
         for player in usertracker:
             gameinfo = cls.get_latest_counter().get_game_info()
-            raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
-            scores = [score.get_score() for score in raw_scores]
+            scores = cls.get_latest_counter().scores.order_by('position desc').all()
             scores.reverse()
             for score in scores:
-                if score['player'] != player:
-                    holder = score['score']
+                if score.player != player:
+                    holder = hand_to_list(score.score)
                     for i, x in enumerate(holder):
                         try:
                             holder[i][3] = 'redacted'
                         except IndexError:
                             pass
-                    score['score'] = holder
+                    score.score = str(hand_to_string(holder))
+
             send_data = {
                 'data': {
-                    'scores': scores,
-                    'game': gameinfo,
+                    'scores': [score.get_score() for score in scores],
+                    'game': gameinfo
                 }
             }
+
+            print send_data['data']['scores']
             socketio.emit('start',
                           send_data,
                           namespace=namespace,
@@ -310,19 +312,18 @@ class Game(db.Model):
     def send_game_data(cls):
         for player in usertracker:
             gameinfo = cls.get_latest_counter().get_game_info()
-            raw_scores = cls.get_latest_counter().scores.order_by('position desc').all()
-            scores = [score.get_score() for score in raw_scores]
+            scores = cls.get_latest_counter().scores.order_by('position desc').all()
             scores.reverse()
             for score in scores:
-                if score['player'] != player:
-                    holder = score['score']
+                if score.player != player:
+                    holder = hand_to_list(score.score)
                     for i, x in enumerate(holder):
                         try:
                             holder[i][3] = 'redacted'
                         except IndexError:
                             pass
-                    score['score'] = holder
-            send_data = {'data': {'scores': scores,
+                    score.score = str(hand_to_string(holder))
+            send_data = {'data': {'scores': [score.get_score() for score in scores],
                                   'game': gameinfo,
                         }
             }
