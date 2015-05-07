@@ -74,8 +74,18 @@ table {
     padding: 5px;
 }
 
-.dealer,.turn {
+.dealer,.turn, .go {
     float: right;
+}
+
+.playerspace .gonow {
+    display: inline-block;
+}
+
+.go {
+    background-color: #ff0000;
+    color: white;
+    display: none;
 }
 
 .bidding {
@@ -109,6 +119,13 @@ table {
 	width: 400px;
 	display: inline-block
 }
+
+#choosetrump {
+    background-color: deeppink;
+    color: white;
+    display: none;
+}
+
 #scorecard {
 	text-align: center;
 }

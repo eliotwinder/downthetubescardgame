@@ -56,7 +56,7 @@
 
         $('#players, #scorecard').empty();
         for(var i = 0; i < players.length; i++){
-            $('#players').append('<div class="playerspace"><div>'+ players[i] +'</div><div class=\'dealer\'>dealer</div><br>Taken: <div class=\'tricks_taken\'></div><div class=\'turn\'>turn</div><br>Bid: <div class=\'bid\'></div><br>Hand:<br><div class=\'hand\'></div></div>');
+            $('#players').append('<div class="playerspace"><div>'+ players[i] +'</div><div class=\'dealer\'>dealer</div><br>Taken: <div class=\'tricks_taken\'></div><div class=\'turn\'>turn</div><br>Bid: <div class=\'bid\'></div><div class=\'go\'>GO!!</div><br>Hand:<br><div class=\'hand\'></div></div>');
             $('#scorecard').append("<div class='score'><p>"+ players[i] +"<br></p><div class='scoreheader'><div class=\'scround\'>R<br></div><div class=\'sctrickstaken\'>T<br></div><div class=\'scbid\'>B<br></div><div class=\'scscore\'>S<br></div></div></div>");
         }
 
@@ -72,6 +72,9 @@
         var gameData = msg.data.game;
         var dealer = (gameData.round % 4) - 1;
         var turn = gameData.turn;
+        var trump = gameData.trump;
+
+        $('#trump').html(trump);
 
         $('.dealer').each(function (i) {
             $(this).hide();
@@ -146,6 +149,7 @@
             }
         });
 
+        $('#played').empty();
         $('#played').append(gameData['played_cards']);
     });
 
@@ -153,33 +157,48 @@
         $('#log').append('<br>' + msg.data)
     });
 
+    socket.on('choose_trump', function(){
+        $('#choosetrump').show();
+        $('#choosetrump div').click(function() {
+
+        })
+    })
     socket.on('your_bid', function(msg){
         bidSpace = $($(".bid").get(msg.data.turntobid));
         bidSpace.empty();
 
-        for (var i = 0; i < msg.data.rdnumber + 1; i++){
-            bidSpace.append("<div>&nbsp;" + i + "&nbsp;</div>");
+        var totalBid = 0;
+        $($(".go").get(msg.data.turntobid)).show();
+        $('.bid').each(function(i){
+           if ( i != msg.data.turntobid) {
+               totalBid += $(this).html();
+           }
+        });
+
+
+        for (var i = 0; i < msg.data.rdnumber + 1; i++) {
+            if (msg.data.bidder != msg.data.rdnumber) {
+                bidSpace.append("<div>&nbsp;" + i + "&nbsp;</div>");
+            } else {
+                if (i != Math.abs(totalBid - msg.data.rdnumber)) {
+                    bidSpace.append("<div>&nbsp;" + i + "&nbsp;</div>");
+                }
+            }
         }
+
         $(bidSpace.find('div')).click(function(){
             var bid = $(this).html().slice(6,7);
+            $(".go").hide();
             socket.emit('bidcast', {
                 'data': {
                     'bid': bid,
                     'bidder': msg.data.bidder
                 }
             });
+            $($(".go").get(msg.data)).show();
+            $('.bid').removeClass('bidding');
             $(bidSpace.find('div')).off('click');
 
-        });
-    });
-
-    socket.on('your_turn', function(msg) {
-        $($(".hand").get(msg.data)).css( 'cursor', 'hand');
-        $($(".hand").get(msg.data)).children().on('click', function(){
-            var card = $(this).html();
-            $(this).hide();
-            socket.emit('cardplayed', {'data': card} );
-            $('.hand div').off('click');
         });
     });
 
@@ -188,6 +207,26 @@
         $('.bid').removeClass('bidding');
         $($('.bid').get(msg.data.turntobid)).addClass('bidding' );
     });
+
+    socket.on('bidding_over', function(){
+        $('.bid').removeClass('bidding');
+    });
+
+    socket.on('your_turn', function(msg) {
+        $($(".go").get(msg.data)).show();
+        $($(".hand").get(msg.data)).css( 'cursor', 'hand');
+        $($(".hand").get(msg.data)).css( 'background-color', 'red');
+        $($(".hand").get(msg.data)).css( 'color', 'white');
+        $($(".hand").get(msg.data)).children().on('click', function(){
+            var card = $(this).html();
+            $(this).hide();
+            socket.emit('cardplayed', {'data': card} );
+            $('.hand div').off('click');
+            $($(".go").get(msg.data)).hide();
+        });
+    });
+
+
 
     socket.on('redirect', function (data) {
         window.location = data.url

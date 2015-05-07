@@ -66,7 +66,7 @@ def got_a_bid(msg):
     Game.receive_bid(msg['data']['bidder'], msg['data']['bid'])
 
 @socketio.on('cardplayed', namespace=namespace)
-def trigger_next_turn(msg):
+def get_the_played_card(msg):
     Game.play_card(msg['data'])
 
 @socketio.on('logout_all', namespace=namespace)
