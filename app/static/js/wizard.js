@@ -190,8 +190,10 @@
 
         for (var i = 0; i < msg.data.rdnumber + 1; i++) {
             if (msg.data.bidder != msg.data.rdnumber) {
+                console.log();
                 bidSpace.append("<div>&nbsp;" + i + "&nbsp;</div>");
             } else {
+                console.log('here');
                 if (i != Math.abs(totalBid - msg.data.rdnumber)) {
                     bidSpace.append("<div>&nbsp;" + i + "&nbsp;</div>");
                 }

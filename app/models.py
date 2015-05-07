@@ -135,6 +135,7 @@ class Game(db.Model):
         game = cls.get_latest_counter()
         scores = cls.get_latest_counter().scores.order_by('position desc').all()
         scores.reverse()
+        Game.send_game_data()
         send_data = {
             'data': {
                 'rdnumber': game.round,
@@ -156,7 +157,6 @@ class Game(db.Model):
 
     @classmethod
     def receive_bid(cls, bidder, bid):
-        print 'hello'
         game = cls.get_latest_counter()
         scores = cls.get_latest_counter().scores.order_by('position desc').all()
         scores.reverse()
