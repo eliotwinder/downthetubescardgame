@@ -70,9 +70,9 @@ def got_a_bid(bid):
 def trump_chosen(msg):
     Game.receive_trump(msg['data']['trump'], msg['data']['chooser'])
 
-@socketio.on('cardplayed', namespace=namespace)
+@socketio.on('card_played', namespace=namespace)
 def get_the_played_card(msg):
-    Game.receive_play_card(msg['data'])
+    Game.receive_play_card(msg.card)
 
 @socketio.on('logout_all', namespace=namespace)
 def log_us_all_out(msg):

@@ -98,6 +98,13 @@ table {
     cursor: hand;
 }
 
+.playing {
+    border: thin solid #000000;
+    cursor: hand;
+    background-color: #6a0996;
+    color: white;
+}
+
 #logholder {
 	width: 300px;
 	height: 300px;
@@ -143,7 +150,6 @@ table {
     border: thin solid #000000;
     width: 25%;
     height: 18px;
-    
 }
 
 
