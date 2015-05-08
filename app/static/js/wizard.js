@@ -1,7 +1,7 @@
  $(document).ready(function() {
     var namespace = '/test';
     var myName = window.current_user_name;
-    var number_of_players = 2
+    var numberOfPlayers = 2;
 
     window.setInterval(function() {
       var elem = document.getElementById('log');
@@ -37,34 +37,81 @@
         return false;
     });
 
+    // start a game!
     $('form#startgame').submit(function(event) {
         socket.emit('start_game');
         return false;
     });
 
-    // event handler for server sent data
+    // event handler for server sent messages
     // the data is displayed in the "Received" section of the page
+    socket.on('server_message', function(msg) {
+        $('#log').append('<br>' + msg.message)
+    });
+
+    //TODO: is this neccesary? same as server_message?
     socket.on('my response', function(msg) {
         $('#log').append('<br>' + msg.data);
     });
 
+    //notify that someone is connected
     socket.on('user_connect_message', function(msg) {
         $('#log').append('<br>' + msg.data + " connected!");
     });
+
+    //set the screen for new game msg = logMessage: message to log, rounds: rounds
     socket.on('start_game', function(msg){
-        $('#log').append('<br>' + msg.data.log);
+        //log that the game has started
+        $('#log').append('<br>' + msg.logMessage);
 
-        var players = msg.data.scores;
+        //get rounds
+        var scoresheets = msg.rounds;
 
+        //empty out the playing field
         $('#players, #scorecard').empty();
-        for(var i = 0; i < players.length; i++){
-            $('#players').append('<div class="playerspace"><div>'+ players[i] +'</div><div class=\'dealer\'>dealer</div><br>Taken: <div class=\'tricks_taken\'></div><div class=\'turn\'>turn</div><br>Bid: <div class=\'bid\'></div><div class=\'go\'>GO!!</div><br>Hand:<br><div class=\'hand\'></div></div>');
-            $('#scorecard').append("<div class='score'><p>"+ players[i] +"<br></p><div class='scoreheader'><div class=\'scround\'>R<br></div><div class=\'sctrickstaken\'>T<br></div><div class=\'scbid\'>B<br></div><div class=\'scscore\'>S<br></div></div></div>");
+
+        //for each scoresheet
+        for(var i = 0; i < scoresheets.length; i++){
+
+            //add a playerspace TODO: better way to do this with templates?
+            $('#players').append(
+                '<div id=' + scoresheets[i][player] +'class="playerspace">' +
+                    '<span class=\'playerspacename\'>' + players[i] + '</span>' +
+                    '<span>Taken:</span>' +
+                    '<div class=\'tricks_taken\'></div><br>' +
+                    'Bid: <div class=\'bid\'></div>' +
+
+                    '<div id=\'notifications\'>' +
+                        '<div class=\'dealer\'>dealer</div><br>' +
+                        '<div class=\'turn\'>turn</div>' +
+                        '<div class=\'go\'>GO!!</div><br>' +
+                    '<div class=\'hand\'>,' +
+                    '   <span> Hand:<br></span>' +  //will be filled with card divs
+                    '</div>' +
+                '</div>');
+
+            //build scorecard
+            $('#scorecard').append(
+                    "<div class='score>'"+ players[i] +"<br>" +
+                        "<div class='scoreheader'>" +
+                            "<div class=\'scround\'>R</div><br>" +
+                            "<div class=\'sctrickstaken\'>T<br></div>" +
+                            "<div class=\'scbid\'>B</div><br>" +
+                            "<div class=\'scscore\'>S<br></div>" +
+                        "</div>" +
+                     "</div>");
         }
 
+        //add a row for each round
         $('.score').each(function() {
             for (var i = 1; i < numOfRounds + 1; i++) {
-                $(this).append("<div class='scorerow' data-row=" + i + "><div class=\'scround\'>" + i +"<br></div><div class=\'sctrickstaken\'><br></div><div class=\'scbid\'><br></div><div class=scscore><br></div></div>");
+                $(this).append(
+                        "<div class='scorerow' data-row=" + i + ">" +
+                            "<div class=\'scround\'>" + i +"</div><br>" +
+                            "<div class=\'sctrickstaken\'></div><br>" +
+                            "<div class=\'scbid\'></div><br>" +
+                            "<div class=\'scscore\'><br></div>" +
+                        "</div>");
             }
         });
     });
@@ -72,7 +119,7 @@
     socket.on('start', function(msg) {
         var scores = msg.data.scores;
         var gameData = msg.data.game;
-        var dealer = (gameData.round % number_of_players) - 1;
+        var dealer = (gameData.round % numberOfPlayers) - 1;
         var turn = gameData.turn;
         var trump = gameData.trump;
 
@@ -158,79 +205,75 @@
         $('#played').append(gameData['played_cards']);
     });
 
-    socket.on('server_message', function(msg) {
-        $('#log').append('<br>' + msg.data)
-    });
+
 
     socket.on('choose_trump', function(){
+        //show the choose a trump panel
         $('#choosetrump').show();
+
+        //event listener to tell the server what player chose and close the choose trump panel
         $('#choosetrump div').click(function() {
             socket.emit('trump_chosen', {'data': {'trump': $(this).html(), 'chooser': myName}});
             $('#choosetrump').hide();
         })
     });
 
+    //receive new trump
     socket.on('trump_chosen', function(msg){
         $("#trump").append("--> " + msg['trump']);
     });
 
-    socket.on('your_bid', function(msg){
-
-        bidSpace = $($(".bid").get(msg.data.turntobid));
-        bidSpace.empty();
-
-        var totalBid = 0;
-        $($(".go").get(msg.data.turntobid)).show();
-        $('.bid').each(function(i){
-           if ( i != msg.data.turntobid) {
-               totalBid += $(this).html();
-           }
-        });
-
-        console.log('bidder' + msg.data.bidder);
-        console.log('rd' + msg.data.rdnumber);
-
-        if(msg.data.bidder == msg.data.rdnumber)
-            for (var j = 0; j < msg.data.rdnumber + 1; j++) {
-              if()
-            }
-
-
-        for (var i = 0; i < msg.data.rdnumber + 1; i++) {
-            if (msg.data.bidder != number_of_players) {
-                bidSpace.append("<div>&nbsp;" + i + "&nbsp;</div>");
-            } else {
-                if (i != Math.abs(totalBid - msg.data.rdnumber)) {
-                    bidSpace.append("<div>&nbsp;" + i + "&nbsp;</div>");
-                }
-            }
-        }
-        $(bidSpace.find('div')).click(function(){
-            var bid = $(this).html().slice(6,7);
-            $(".go").hide();
-            socket.emit('bidcast', {
-                'data': {
-                    'bid': bid,
-                    'bidder': msg.data.bidder
-                }
-            });
-            $($(".go").get(msg.data)).show();
-            $('.bid').removeClass('bidding');
-            $(bidSpace.find('div')).off('click');
-
-        });
-    });
-
     //shows everyone whose bid it is
-    socket.on('bidder', function(msg) {
+    socket.on('new_bidder', function(bidIndex) {
         $('.bid').removeClass('bidding');
-        $($('.bid').get(msg.data.turntobid)).addClass('bidding' );
+        $($('.bid').get(bidIndex)).addClass('bidding' );
     });
+
+    //receive a request to bid along with data.roundNumber, data.bidIndex and data.totalBid
+     socket.on('your_bid', function(data) {
+         var roundNumber = data.roundNumber
+         var bidderIndex = data.bidderIndex;
+         var totalBid = data.totalBid;
+
+         // selects the bid display div for the current bidder and clears it to make way for the buttons
+         var biddersSpace = $($(".bid").get(bidderIndex));
+         biddersSpace.empty();
+
+         //show the GO!! alert
+         $($(".go").get(bidderIndex)).show();
+
+         //if you're the last to deal, only show your possible bids
+         if (bidderIndex == numberOfPlayers) {
+             for (var i = 0; i < roundNumber + 1; i++) {
+                 //check if you can bid each # - if you can, add the div
+                 if ( i != totalBid + roundNumber) {
+                     biddersSpace.append('<div class=\'bidselect\'>' + i + '</div>');
+                 }
+             }
+         //if you're not the last to bid, display all possible bids
+         } else {
+             for (var i = 0; i < roundNumber + 1; i++) {
+                 biddersSpace.append('<div class=\'bidselect\'>' + i + '</div>');
+             }
+         }
+
+        //add event listener to send bid
+        $('.bidselect').click(function(){
+            var bid = $(this).html();
+            $(".go").hide();
+
+            //tell the server your bid
+            socket.emit('bid_cast', bid);
+
+            // remove event listener and change bid to selected bid
+            $(biddersSpace).html(bid);
+            $(biddersSpace.find('div')).off('click');
+        });
+     });
 
     socket.on('bidding_over', function(){
         $('.bid').removeClass('bidding');
     });
-
     socket.on('your_turn', function(msg) {
         $($(".go").get(msg.data)).show();
         $($(".hand").get(msg.data)).css( 'cursor', 'hand');

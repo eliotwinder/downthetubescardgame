@@ -61,9 +61,10 @@ def test_broadcast_message(message):
 def trigger_start():
     Game.create_game()
 
-@socketio.on('bidcast', namespace=namespace)
-def got_a_bid(msg):
-    Game.receive_bid(msg['data']['bidder'], msg['data']['bid'])
+# receive bid
+@socketio.on('bid_cast', namespace=namespace)
+def got_a_bid(bid):
+    Game.receive_bid(bid)
 
 @socketio.on('trump_chosen', namespace=namespace)
 def trump_chosen(msg):
@@ -71,7 +72,7 @@ def trump_chosen(msg):
 
 @socketio.on('cardplayed', namespace=namespace)
 def get_the_played_card(msg):
-    Game.play_card(msg['data'])
+    Game.receive_play_card(msg['data'])
 
 @socketio.on('logout_all', namespace=namespace)
 def log_us_all_out(msg):
