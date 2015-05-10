@@ -75,18 +75,18 @@ $(document).ready(function () {
                     '<div class=\'turn\'>turn</div>' +
                     '<div class=\'go\'>GO!!</div><br>' +
                     '<div class=\'hand\'>,' +
-                    '   <span> Hand:<br></span>' +  //will be filled with card divs
+                    '   <span> Hand:<br></span>' +
                     '</div>' +
                     '</div>');
 
             //build scorecard
             $('#scorecard').append(
-                    "<div class='score>'" + players[i] + "<br>" +
+                    "<div class='score'>" + players[i] + "<br>" +
                     "<div class='scoreheader'>" +
-                    "<div class=\'scround\'>R</div><br>" +
-                    "<div class=\'sctrickstaken\'>T<br></div>" +
-                    "<div class=\'scbid\'>B</div><br>" +
-                    "<div class=\'scscore\'>S<br></div>" +
+                    "<div class='scround'>R</div><br>" +
+                    "<div class='sctrickstaken'>T<br></div>" +
+                    "<div class='scbid'>B</div><br>" +
+                    "<div class='scscore'>S<br></div>" +
                     "</div>" +
                     "</div>");
         }
@@ -95,42 +95,34 @@ $(document).ready(function () {
         $('.score').each(function () {
             for (var i = 1; i < numOfRounds + 1; i++) {
                 $(this).append(
-                        "<div class='scorerow' data-row=" + i + ">" +
-                        "<div class=\'scround\'>" + i + "</div><br>" +
-                        "<div class=\'sctrickstaken\'></div><br>" +
-                        "<div class=\'scbid\'></div><br>" +
-                        "<div class=\'scscore\'><br></div>" +
+                        "<div class='scorerow'>" +
+                            "<div class='scround'>" + i + "</div><br>" +
+                            "<div class='sctrickstaken'></div><br>" +
+                            "<div class='scbid'></div><br>" +
+                            "<div class='scscore'><br></div>" +
                         "</div>");
             }
         });
     });
 
-    socket.on('add_score_row', function (msg) {
-        $('.score').each(function (i) {
-            $(this).find('.scorerow').each(function (j) {
-                if (typeof scores[i].score[j] != 'undefined') {
-                    $(this).find('.sctrickstaken').html(scores[i].score[j][0]);
-                    $(this).find('.scbid').html(scores[i].score[j][1]);
-                    $(this).find('.scscore').html(scores[i].score[j][2]);
-                }
-            });
-        });
-    });
-
+    // reset round div
     socket.on('update_round', function (msg) {
         $('#round').html(msg.round);
     });
 
+    // show your hand
     socket.on('deal_hand', function (msg) {
         for (var i = 0; i < msg.hand.length(); i++) {
             $(myName + '.hand').append(msg.hand[i]);
         }
     });
 
+//    let
     socket.on('pass_trump', function(msg) {
         $('#trump').html(msg.trump);
     });
 
+    // tells you to choose trump
     socket.on('choose_trump', function () {
         //show the choose a trump panel
         $('#choosetrump').show();
@@ -195,6 +187,7 @@ $(document).ready(function () {
         });
     });
 
+    //bidding is finished, remove highlight on bidding
     socket.on('bidding_over', function () {
         $('.bid').removeClass('bidding');
     });
@@ -227,4 +220,17 @@ $(document).ready(function () {
             $(this).html(msg.tricksTaken[i]);
         });
     });
+
+    socket.on('update_scorecard', function(msg){
+        gameRound = msg.gameRound;
+        stats = msg.statsArray  // array of round objects in order of player position
+
+        $('.score > .scorerow:nth-of-type(game.round)').each(function(i) {
+           $(this).find('.sctrickstaken').html(stats[i].tricks_taken);
+           $(this).find('.scbid').html(stats[i].bid);
+           $(this).find('.scscore').html(stats[i].score);
+        });
+    });
 });
+
+

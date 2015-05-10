@@ -4,19 +4,17 @@ from app import app, db, lm, socketio
 import yaml
 import json
 from forms import LoginForm
-from models import Player, Game, Scoresheet, usertracker
+from models import Player, Game, Scoresheet
 from flask.ext.socketio import SocketIO, emit, send, join_room, leave_room, close_room, disconnect
 
-players = Player.query.all()
 logged_in_players = 0
 namespace = '/test'
 
-# hooks for json decoding
 @app.route('/')
 @app.route('/index')
 @login_required
 def index():
-    return render_template('index.html', players=players, started=False)
+    return render_template('index.html', started=False)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -30,8 +28,7 @@ def login():
         flash('not logged in')
     return render_template('login.html',
                            title="sign in",
-                           form=form,
-                           players=players)
+                           form=form)
 
 @app.route('/logout')
 def logout():
@@ -44,8 +41,6 @@ def load_user(id):
 
 @socketio.on('user_connected', namespace=namespace)
 def test_broadcast_message(message):
-    if message['data'] not in usertracker:
-        usertracker.append(message['data'])
     join_room(message['data'])
     emit('user_connect_message',
          {'data': message['data']},
