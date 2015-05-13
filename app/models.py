@@ -1,4 +1,5 @@
 from app import db, socketio
+from flask import json
 import random
 from random import shuffle
 
@@ -22,12 +23,11 @@ class Game(db.Model):
     turn = db.Column(db.Integer, default=0)  # index for who will play a card next
     bid_index = db.Column(db.Integer, default=0)
     trick_counter = db.Column(db.Integer, default=0)
-    player_count = db.Column(db.Integer, default=0)
     game_started = db.Column(db.Boolean, default=False)
     time_started = db.Column(db.DateTime)
     game_ended = db.Column(db.Boolean, default=False)
     trump = db.Column(db.String)
-    scores = db.relationship('Scoresheet', backref='games', lazy='dynamic')
+    scores = db.relationship('Scoresheet', backref='game_object', lazy='dynamic')
 
     def __repr__(self):
         return "game# %r" % str(self.id)
@@ -48,6 +48,13 @@ class Game(db.Model):
     def get_players(self):
         return [scoresheet.player for scoresheet in self.get_scoresheets()]
 
+    def get_dealer_index(self, round):
+        return self.round % (len(self.get_players()) - 1)
+
+    def get_dealer_name(self, round):
+        players = self.get_players()
+        return players[self.get_dealer_index(round)]
+
     # returns the index of the nth bidder for this round
     def get_bidder_index(self):
         return (self.round + self.bid_index) % number_of_players
@@ -67,18 +74,14 @@ class Game(db.Model):
         turn_name = scoresheets[turn_index].player
         return turn_name
 
-    def get_total_bid(self):
+    def get_total_bid_by_round(self, round_number):
         scoresheets = self.get_scoresheets()
-        return reduce(lambda x, y: x.get_round(game.round).bid + y.get_round(game.round).bid, scoresheets)
+        stats = [scoresheet.get_stats(round_number) for scoresheet in scoresheets]
+        return reduce(lambda x, y: x.bid + y.bid, stats)
 
-    def get_latest_stats(self):
+    def get_all_stats_by_round(self, round):
         scoresheets = self.get_scoresheets()
-        return [scoresheet.round[-1] for scoresheet in scoresheets]
-
-    # returns list of scores in order of position
-    def get_scores(self, round):
-        scoresheets = self.get_latest_stats()
-        [scoresheet.rounds[round - 1] for scoresheet in scoresheets]
+        return [scoresheet.get_stats() for scoresheet in scoresheets]
 
     # return a list of the cards played in a given trick and round
     def get_played_cards(self, round, trick):
@@ -89,8 +92,8 @@ class Game(db.Model):
     def get_trump(self, round):
         return self.trump[round]
 
-    def get_score_report(self):
-        stats = self.get_latest_stats()
+    def get_score_report(self, round):
+        stats = self.get_latest_stats(round)
         scores = [stat.score for stat in stats]
         players = self.get_players()
         sorted_scores = sorted(scores)
@@ -112,67 +115,61 @@ class Game(db.Model):
         db.session.add(game)
         db.session.commit()
 
-        #randonly assing order that will be assigned when we create scoresheets
+        #randomly passing order that will be assigned when we create scoresheets
         positions = range(0, number_of_players)
         random.shuffle(positions)
 
         #create a scoresheet for each player TODO: this is currently making a game from all players in the db
         players = Player.query.all()
+        player_names = []
         for player in players:
-            p = Scoresheet(player=player.name, game=game.id, position=positions.pop())
+            p = Scoresheet(player=player.name, game_id=game.id, position=positions.pop())
             db.session.add(p)
+            db.session.commit()
+            player_names.append(player.name)
+
+            for i in range(0,number_of_rounds):
+                r = Round(scoresheet_id=p.id, round_number=i+1)
+                db.session.add(r)
         db.session.commit()
 
         # assemble data to be sent
-        send_data = {'logMessage': 'game started'}
+        send_data = {'logMessage': 'game started','players': player_names}
         socketio.emit('start_game', send_data, namespace=namespace)
 
         #play the first round
         game.play_round()
 
 
-    @classmethod
-    def play_round(cls):
-        #select game and scoresheets
-        game = cls.get_game()
-        scoresheets = game.get_scoresheets()
-
+    def play_round(self):
         #check if the game is over
-        if game.round == number_of_rounds:
+        if self.round == number_of_rounds:
             print "game over!"
             return
 
-        # increase round counter - round is 1 indexed - 1 == rd1
-        game.round += 1
+        # increase round counter - round is 1 indexed, 1 == rd1
+        self.round += 1
         # set who's turn it is to index 1 (dealer is index 0, so it's left of the dealer)
-        game.turn = game.round
-
-        #add round to score and played cards in the database
-        for scoresheet in scoresheets:
-            print scoresheet.get_round(game.round)
-            scoresheet.rounds.append([])
-            scoresheet.played_cards.append([])
+        self.turn = self.round
         db.session.commit()
 
-        # let everyone know the round started through a server message
-        socketio.emit('server_message', {'message': 'Round' + str(game.round) + "...FIGHT!!!"}, namespace=namespace)
-        socketio.emit('update_round', {'round': game.round}, namespace=namespace)
+        # let everyone know the round started
+        socketio.emit('server_message', {'message': 'Round' + str(self.round) + "...FIGHT!!!"}, namespace=namespace)
+        socketio.emit('update_round', {'round': self.round}, namespace=namespace)
 
         # shuffle up n deal
-        Game.deal()
+        self.deal()
 
 
-    @classmethod
-    def deal(cls):
-        game = cls.get_game()
-        scoresheets = game.get_scoresheets()
+    def deal(self):
+        scoresheets = self.get_scoresheets()
 
         # build the deck
         deck = []
         suits = ['C', 'D', 'H', 'S']
         for suit in suits:
             for i in range(1, 14):
-                deck.append([suit, i])  # TODO: will this append a list, or add these two items to the list
+                deck.append([suit, i])
         for i in range(3):
             deck.append(["W", 27])
             deck.append(["J", 0])
@@ -183,53 +180,48 @@ class Game(db.Model):
         # deal the cards
         for scoresheet in scoresheets:
             # select the hand from scoresheet object
-            round = scoresheet.get_round(game.round)
+            stat = scoresheet.get_stats(self.round)
 
+            # TODO: better way to do this than use holder?
             # create a holder for the shuffled cards
             holder = list()
 
             # deal
-            for i in range(game.round - 1):
+            for i in range(self.round):
                 holder.append(deck.pop(0))
 
             # arrange the cards TODO: how to sort by suit
             holder = sorted(holder)
 
             # reset the hand in the database
-            round.hand = holder
+            stat.hand = json.dumps(holder)
             db.session.commit()
 
             # send hands to each player
-            socketio.emit('deal_hand', {'hand': round.hand}, namespace=namespace, room=scoresheet.player)
+            socketio.emit('deal_hand', {'hand': stat.hand}, namespace=namespace, room=scoresheet.player)
 
         # set trump
-        game.trump = deck.pop(0)
-        socketio.emit('pass_trump', {'trump': game.trump}, namespace=namespace)
+        self.trump = json.dumps(deck.pop(0))
+        socketio.emit('pass_trump', {'trump': self.trump}, namespace=namespace)
         db.session.commit()
 
         # if the trump is wizard, ask the dealer for a suit
-        if game.trump[0] == "W":
-            Game.choose_a_trump()
+        if self.trump[0] == "W":
+            self.choose_a_trump()
         #else get first bid
         else:
-            Game.get_bid()
+            self.get_bid()
 
-    @classmethod
-    def choose_a_trump(cls):
-        # get game and scoresheets
-        game = cls.get_game()
-
+    def choose_a_trump(self):
         # get a list of players in position order, then select the dealer with game,round
-        players = game.get_players()
-        dealer = players[game.round]
+        players = self.get_players()
+        dealer = self.get_dealer_name(self.round)
 
         # request trump choice
         socketio.emit('choose_trump', namespace=namespace, room=dealer.player)
 
-    @classmethod
-    def receive_trump(cls, trump, chooser):
+    def receive_trump(self, trump, chooser):
         # set trump to chosen suit
-        game = cls.get_game()
         game.trump = trump
         db.session.commit()
 
@@ -239,128 +231,102 @@ class Game(db.Model):
         # tell everyone to display trump
         socketio.emit('trump_chosen', trump, namespace=namespace)
 
-        cls.get_bid()
+        self.get_bid()
 
-    @classmethod
-    def get_bid(cls):
-        game = cls.get_game()
-        players = game.get_players()
-        bidder_index = game.get_bidder_index()
+    def get_bid(self):
+        players = self.get_players()
+        bidder_index = self.get_bidder_index()
         bidder_name = players[bidder_index]
 
         #get total bid so far
-        total_bid = game.get_total_bid()
+        total_bid = self.get_total_bid_by_round(self.round)
 
         #let everyone know who's bidding
         socketio.emit('new_bidder', {'bidderIndex': bidder_index}, namespace=namespace)
 
         #tell the player it's their turn to bid
         send_data = {
-            'roundNumber': game.round,
+            'roundNumber': self.round,
             'bidderIndex': bidder_index,
             'totalBid': total_bid
         }
+
         socketio.emit('your_bid', send_data, namespace=namespace, room=bidder_name)
 
-    @classmethod
-    def receive_bid(cls, passed_bid):
-        game = cls.get_game()
-        scoresheets = game.get_scoresheets()
-        bidder_index = game.get_bidder_index()
-        bidder_name = game.get_bidder_name()
+    def receive_bid(self, passed_bid):
+        scoresheets = self.get_scoresheets()
+        bidder_index = self.get_bidder_index()
+        bidder_name = self.get_bidder_name()
 
         #save the bid and increase bid_index in the database
         bidder = scoresheets[bidder_index]
-        this_round = bidder.rounds[game.rounds]
+        this_round = bidder.rounds[self.rounds]
         this_round.bid = passed_bid
-        game.bid_index += 1
+        self.bid_index += 1
         db.session.commit()
 
         # tell everyone what the person bid
         server_msg = bidder_name + " bid " + passed_bid
-        bid_array = [scoresheet.get_round(game.round).bid for scoresheet in scoresheets]
+        bid_list = [scoresheet.get_stats(self.round).bid for scoresheet in scoresheets]
         socketio.emit('server_message', {'message': server_msg}, namespace=namespace)
-        socketio.emit('refresh_bid', {'bidArray': bid_array}, namespace=namespace)
+        socketio.emit('refresh_bid', {'bidArray': bid_list}, namespace=namespace)
 
         # check if everyone has bid
-        if bidder_index < number_of_players:
-            socketio.emit('bidding_over', namespace=namespace)
-            cls.get_bid()
+        if bidder_index == number_of_players:
+            self.get_bid()
 
         # if we are done bidding, let everyone know and start a trick
         else:
             # let us know if we're under/overbid
-            difference = game.get_total_bid() - game.round
+            difference = self.get_total_bid_by_round(self.round) - self.round
             if difference > 0:
-                message = "Total bid is " + game.get_total_bid() + ". We are " + abs(difference) + " underbid."
+                message = "Total bid is " + self.get_total_bid_by_round(self.round) + ". We are " + abs(difference) + " underbid."
             else:
-                message = "Total bid is " + game.get_total_bid() + ". We are " + abs(difference) + " overbid."
+                message = "Total bid is " + self.get_total_bid_by_round(self.round) + ". We are " + abs(difference) + " overbid."
 
             socketio.emit('server_message', {'message': message}, namespace=namespace)
 
-            cls.play_trick()
+            self.request_play_card()
 
-    @classmethod
-    def play_trick(cls):
-        game = cls.get_game()
-        scoresheets = game.get_scoresheets()
-
-        #add empty played cards container for this round to each scoresheet
-        for scoresheet in scoresheets:
-            scoresheet.played_cards.append([])
-
-        #get the first player's card
-        cls.request_play_card()
-
-    @classmethod
-    def request_play_card(cls):
-        game = cls.get_game()
-        turn_name = game.get_turn_name()
+    def request_play_card(self):
+        turn_name = self.get_turn_name()
 
         # tell next player it's their turn
-        message = {'turn': game.round}
+        message = {'turn': self.round}
         socketio.emit('your_turn', message ,namespace=namespace, room=turn_name)
 
         # tell everyone who's turn it is
         message = turn_name + "\'s turn"
         socketio.emit('server_message', {'message': message}, namespace=namespace)
 
-
-    @classmethod
-    def receive_play_card(cls, card):
-        game = cls.get_game()
-        turn_index = game.get_turn_index()
-        players = game.get_players()
+    def receive_play_card(self, card):
+        turn_index = self.get_turn_index()
+        players = self.get_players()
         player = players[turn_index]
 
         # log who played what card
-        msg = player + " played " + card
-        socketio.emit('server_message', {'message': msg}, namespace=namespace)
-
-        # add the played card to the database
-        Scoresheet.played_cards[game.round].append(card)
-        db.session.commit()
+        msg = {'message': player + " played " + card}
+        socketio.emit('server_message', msg, namespace=namespace)
 
         # increase the turn counter
-        game.turn_counter += 1
+        self.turn_counter += 1
         db.session.commit()
 
         # if trick isn't over, get the next players card
-        if game.turn_counter < number_of_players:
-            cls.request_play_card()
+        if self.turn_counter < number_of_players:
+            self.request_play_card()
 
         # if trick is over, score the trick
         else:
-            cls.score_trick()
+            self.score_trick()
 
     @classmethod
-    def score_trick(cls):
-        game = cls.get_game()
-        scoresheets = game.get_scoresheets()
-        played_cards_by_position = game.get_played_cards(game.round, game.trick_counter)
-        who_led = game.get_turn_index()
+    def score_trick(self):
+        scoresheets = self.get_scoresheets()
+        played_cards_by_position = self.get_played_cards(self.round, self.trick_counter)
+        who_led = self.get_turn_index()
         played_cards_by_played_order = played_cards_by_position[who_led:] + played_cards_by_position[:who_led]
-        trump = game.get_trump(game.round)
+        trump = self.get_trump(self.round)
 
         #get led suit
         led_suit = played_cards_by_played_order[who_led][0]
@@ -404,9 +370,9 @@ class Game(db.Model):
 
         # add a trick taken to the scoresheet and set the turn to the winner
         winner_scoresheet = scoresheets[winner]
-        winner_scoresheet.rounds[game.round].tricks_taken += 1
-        game.turn = winner
-        game.trick_counter += 1
+        winner_scoresheet.stats[self.round].tricks_taken += 1
+        self.turn = winner
+        self.trick_counter += 1
         db.session.commit()
 
         # let everyone know the winner
@@ -415,29 +381,27 @@ class Game(db.Model):
         socketio.emit('server_message', message, namespace=namespace)
 
         # refresh trick_taken counters on client side
-        tricks_taken = [scoresheet.get_round(game.round) for scoresheet in scoresheets]
+        tricks_taken = [scoresheet.get_stats(self.round) for scoresheet in scoresheets]
         socketio.emit('refresh_tricks_taken', {'tricksTaken': tricks_taken}, namespace=namespace)
 
         #if we've played all the tricks, score the round, if not play the next trick
-        if game.trick_counter == game.round:
-            Game.score_round()
+        if self.trick_counter == self.round:
+            self.score_round()
         else:
-            Game.play_trick()
+            self.play_trick()
 
-    @classmethod
-    def score_round(cls):
-        game = cls.get_game()
-        scoresheets = game.get_scoresheets()
+    def score_round(self):
+        scoresheets = self.get_scoresheets()
 
         # score the round for each player
         for scoresheet in scoresheets:
-            this_round = scoresheet.get_round(game.round)
+            this_round = scoresheet.get_stats(self.round)
             bid = this_round.bid
             tricks_taken = this_round.tricks_taken
 
             # check if it's the first round
-            if game.round == 1:
-                previous_round = scoresheet.get_round(game.round - 1)
+            if self.round == 1:
+                previous_round = scoresheet.get_stats(self.round - 1)
                 previous_score = previous_round.score
             else:
                 previous_score = 0
@@ -450,27 +414,26 @@ class Game(db.Model):
         db.session.commit()
 
         #send data to add row to scorecard
-        this_rounds_stats = [scoresheet.get_round(game.round) for scoresheet in scoresheets]
+        this_rounds_stats = [scoresheet.get_stats(game.round) for scoresheet in scoresheets]
         send_data = {
-            'gameRound': game.round,
+            'gameRound': self.round,
             'tricksTaken': this_rounds_stats}
         socketio.emit('update_scorecard', send_data, namespace=namespace)
 
         #log the action
-        score_report = game.get_score_report()
+        score_report = self.get_score_report()
 
-        send_data = {'message': score_message}
+        send_data = {'message': score_report}
         socketio.emit('server_message', send_data, namespace=namespace)
 
         #increment round counter, check if the game is over
-        game.round += 1
+        self.round += 1
         db.session.commit()
-        if game.round == number_of_rounds:
-            game.game_ended = True
+        if self.round == number_of_rounds:
+            self.game_ended = True
             print 'Game Over'
         else:
-            cls.play_round()
-
+            self.play_round()
 
 class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -496,24 +459,36 @@ class Player(db.Model):
         except NameError:
             return str(self.id)  # python 3
 
-    def get_player_info(self):
-        return dict(name=self.name)
-
-
 class Scoresheet(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     player = db.Column(db.Integer, db.ForeignKey('player.name'))
-    game = db.Column(db.Integer, db.ForeignKey('game.id'))
-    rounds = db.Column(db.String)
+    game_id = db.Column(db.Integer, db.ForeignKey('game.id'))
     position = db.Column(db.Integer)
-    played_cards = db.Column(db.String, default="[]")
+    stats = db.relationship('Round', backref='sheet', lazy='dynamic')
 
     def __repr__(self):
-        return "<player %r, score %r>" % (self.player, self.game)
+        return "<scoresheet for player %r, game %r>" % (self.player, self.game_id)
 
-    # points to the current round
-    def get_round(self, round_number):
-        if round_number is None:
-            return self.rounds[:]
-        else:
-            return self.rounds[round_number - 1]
+    #returns the stats for a scoresheet by round in order of position
+    def get_stats(self, round_num):
+        stats = db.session.query(Round).filter_by(scoresheet_id=self.id,round_number=round_num).first()
+        return stats
+
+    # points to stats by
+    def get_round(self, round_num):
+        return self.rounds[round_num - 1]
+
+
+class Round(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    scoresheet_id = db.Column(db.Integer, db.ForeignKey('scoresheet.id'))
+    round_number = db.Column(db.Integer)
+    tricks_taken = db.Column(db.Integer, default=0)
+    bid = db.Column(db.Integer, default=0)
+    hand = db.Column(db.String, default='[]')
+    played_cards = db.Column(db.String, default='[]')
+
+    def __repr__(self):
+        return "<round %r>" % (self.round_number)
+
+

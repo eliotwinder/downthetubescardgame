@@ -82,6 +82,10 @@ table {
     display: inline-block;
 }
 
+.currentstats, .notifications {
+    display: inline-block;
+    width: 48%;
+}
 .go {
     background-color: #ff0000;
     color: white;

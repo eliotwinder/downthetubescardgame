@@ -54,28 +54,32 @@ $(document).ready(function () {
         $('#log').append('<br>' + msg.logMessage);
 
         //get rounds
-        var scoresheets = msg.rounds;
+        var players = msg.players;
 
         //empty out the playing field
         $('#players, #scorecard').empty();
 
         //for each scoresheet
-        for (var i = 0; i < scoresheets.length; i++) {
+        for (var i = 0; i < players.length; i++) {
 
             //add a playerspace TODO: better way to do this with templates?
             $('#players').append(
-                    '<div id=' + scoresheets[i][player] + 'class="playerspace">' +
-                    '<span class=\'playerspacename\'>' + players[i] + '</span>' +
-                    '<span>Taken:</span>' +
-                    '<div class=\'trickstaken\'></div><br>' +
-                    'Bid: <div class=\'bid\'></div>' +
+                    '<div id' + players[i] + '\' class="playerspace">' +
+                    '<div class=\'currentstats\'>' +
+                        '<span class=\'playerspacename\'>' + players[i] + '</span><br>' +
+                        '<span>Taken:</span>' +
+                        '<div class=\'trickstaken\'></div><br>' +
+                        '<span>Bid:</span>' +
+                        '<div class=\'bid\'></div><br>' +
 
-                    '<div id=\'notifications\'>' +
-                    '<div class=\'dealer\'>dealer</div><br>' +
-                    '<div class=\'turn\'>turn</div>' +
-                    '<div class=\'go\'>GO!!</div><br>' +
-                    '<div class=\'hand\'>,' +
-                    '   <span> Hand:<br></span>' +
+                        '<span> Hand:<br></span>' +
+                        '<div class=\'hand\'></div>' +
+                    '</div>' +
+
+                    '<div class=\'notifications\'>' +
+                        '<div class=\'dealer\'>dealer</div><br>' +
+                        '<div class=\'turn\'>turn</div>' +
+                        '<div class=\'go\'>GO!!</div><br>' +
                     '</div>' +
                     '</div>');
 
@@ -112,8 +116,10 @@ $(document).ready(function () {
 
     // show your hand
     socket.on('deal_hand', function (msg) {
-        for (var i = 0; i < msg.hand.length(); i++) {
-            $(myName + '.hand').append(msg.hand[i]);
+        var hand = JSON.parse(msg.hand);
+        console.log(Array.isArray(hand));
+        for (var i = 0; i < hand.length; i++) {
+            $(myName + ' .hand').append(msg.hand[i]);
         }
     });
 
