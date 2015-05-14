@@ -42,6 +42,11 @@ $(document).ready(function () {
         $('#log').append('<br>' + msg.message)
     });
 
+    function decodeHand(cards) {
+        var hand = cards.split(",");
+        return hand
+    }
+
     // start a game!
     $('form#startgame').submit(function (event) {
         socket.emit('start_game');
@@ -64,7 +69,7 @@ $(document).ready(function () {
 
             //add a playerspace TODO: better way to do this with templates?
             $('#players').append(
-                    '<div id' + players[i] + '\' class="playerspace">' +
+                    '<div id=\'' + players[i] + '\' class="playerspace">' +
                     '<div class=\'currentstats\'>' +
                         '<span class=\'playerspacename\'>' + players[i] + '</span><br>' +
                         '<span>Taken:</span>' +
@@ -87,10 +92,10 @@ $(document).ready(function () {
             $('#scorecard').append(
                     "<div class='score'>" + players[i] + "<br>" +
                     "<div class='scoreheader'>" +
-                    "<div class='scround'>R</div><br>" +
-                    "<div class='sctrickstaken'>T<br></div>" +
-                    "<div class='scbid'>B</div><br>" +
-                    "<div class='scscore'>S<br></div>" +
+                    "<div class='scround'>R</div>" +
+                    "<div class='sctrickstaken'>T</div>" +
+                    "<div class='scbid'>B</div>" +
+                    "<div class='scscore'>S</div>" +
                     "</div>" +
                     "</div>");
         }
@@ -99,14 +104,17 @@ $(document).ready(function () {
         $('.score').each(function () {
             for (var i = 1; i < numOfRounds + 1; i++) {
                 $(this).append(
-                        "<div class='scorerow'>" +
-                            "<div class='scround'>" + i + "</div><br>" +
-                            "<div class='sctrickstaken'></div><br>" +
-                            "<div class='scbid'></div><br>" +
-                            "<div class='scscore'><br></div>" +
-                        "</div>");
+                    "<div class='scorerow'>" +
+                        "<div class='scround'>" + i + "</div>" +
+                        "<div class='sctrickstaken'></div>" +
+                        "<div class='scbid'></div>" +
+                        "<div class='scscore'></div>" +
+                    "</div><br>"
+                );
             }
         });
+
+        console.log($('.score .scorerow:nth-child(3)'));
     });
 
     // reset round div
@@ -114,12 +122,12 @@ $(document).ready(function () {
         $('#round').html(msg.round);
     });
 
-    // show your hand
+    // show your hand and change dealer
+    //TODO: data is coming in a string but we need an array. i've written a function - better way to do this?
     socket.on('deal_hand', function (msg) {
-        var hand = JSON.parse(msg.hand);
-        console.log(Array.isArray(hand));
-        for (var i = 0; i < hand.length; i++) {
-            $(myName + ' .hand').append(msg.hand[i]);
+        var h = decodeHand(msg.hand);
+        for (var i = 0; i < h.length; i++) {
+            $("#" + myName + " .hand").append("<div>" + h[i]+ "</div>");
         }
     });
 
@@ -156,6 +164,7 @@ $(document).ready(function () {
         var roundNumber = data.roundNumber
         var bidderIndex = data.bidderIndex;
         var totalBid = data.totalBid;
+        var lastBidder = data.lastBidder
 
         // selects the bid display div for the current bidder and clears it to make way for the buttons
         var biddersSpace = $($(".bid").get(bidderIndex));
@@ -165,10 +174,10 @@ $(document).ready(function () {
         $($(".go").get(bidderIndex)).show();
 
         //if you're the last to deal, only show your possible bids
-        if (bidderIndex == numberOfPlayers) {
+        if (lastBidder === 'true') {
             for (var i = 0; i < roundNumber + 1; i++) {
                 //check if you can bid each # - if you can, add the div
-                if (i != totalBid + roundNumber) {
+                if (i + totalBid != roundNumber) {
                     biddersSpace.append('<div class=\'bidselect\'>' + i + '</div>');
                 }
             }
@@ -207,15 +216,14 @@ $(document).ready(function () {
 
     //server requests a played card
     socket.on('your_turn', function (msg) {
-        $(myName + " .go").show();
-        var myHand = $(myName + " .hand");
+        $("#" + myName + " .go").show();
+        var myHand = $("#" + myName + " .hand");
         myHand.addClass('playing');
-
         myHand.children().on('click', function () {
-            var card = $(this).html();
+            var card = $(this).text();
             $(this).hide();
             $('.hand div').off('click');
-            $(myName + " .go").show();
+            $("#" + myName + " .go").remove();
             socket.emit('card_played', {'card': card});
         });
     });
@@ -229,9 +237,9 @@ $(document).ready(function () {
 
     socket.on('update_scorecard', function(msg){
         gameRound = msg.gameRound;
-        stats = msg.statsArray  // array of round objects in order of player position
-
-        $('.score > .scorerow:nth-of-type(game.round)').each(function(i) {
+        stats = msg.stats;  // array of round objects in order of player position
+        console.log(gameRound);
+        $('.score .scorerow:nth-child('+ (gameRound + 2) +')').each(function(i) {
            $(this).find('.sctrickstaken').html(stats[i].tricks_taken);
            $(this).find('.scbid').html(stats[i].bid);
            $(this).find('.scscore').html(stats[i].score);

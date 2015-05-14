@@ -76,6 +76,7 @@ table {
 
 .dealer,.turn, .go {
     float: right;
+    display: none;
 }
 
 .playerspace .gonow {
@@ -102,7 +103,7 @@ table {
     cursor: hand;
 }
 
-.playing {
+.playing div{
     border: thin solid #000000;
     cursor: hand;
     background-color: #6a0996;
@@ -116,7 +117,7 @@ table {
 }
 #broadcast{
 	width: 300px;
-	display: inline-block
+	display: inline-block;
 	height: 10%;
 }
 #log {
@@ -150,7 +151,7 @@ table {
     display: inline-block;
 }
 
-.scorerow > div, .scoreheader > div {
+.scoreheader > div, .scorerow > div, .scoreheader > div {
     border: thin solid #000000;
     width: 25%;
     height: 18px;

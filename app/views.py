@@ -1,6 +1,6 @@
 from flask import render_template, flash, redirect, session, url_for, request, g
 from flask.ext.login import login_user, logout_user, current_user, login_required
-from app import app, db, lm, socketio
+from app import app, db, lm, socketio, models
 import yaml
 import json
 from forms import LoginForm
@@ -47,10 +47,8 @@ def test_broadcast_message(message):
          broadcast=True)
 
 @socketio.on('send_chat', namespace=namespace)
-def test_broadcast_message(message):
-    emit('my response',
-         {'data': message['data']},
-         broadcast=True)
+def send_chat(message):
+    emit('server_message', {'message': message['data']}, broadcast=True)
 
 @socketio.on('start_game', namespace=namespace)
 def trigger_start():
@@ -59,15 +57,15 @@ def trigger_start():
 # receive bid
 @socketio.on('bid_cast', namespace=namespace)
 def got_a_bid(bid):
-    Game.receive_bid(bid)
+    Game.get_game().receive_bid(bid)
 
 @socketio.on('trump_chosen', namespace=namespace)
 def trump_chosen(msg):
-    Game.receive_trump(msg['data']['trump'], msg['data']['chooser'])
+    Game.get_game().receive_trump(msg['data']['trump'], msg['data']['chooser'])
 
 @socketio.on('card_played', namespace=namespace)
 def get_the_played_card(msg):
-    Game.receive_play_card(msg.card)
+    Game.get_game().receive_play_card(msg['card'])
 
 @socketio.on('logout_all', namespace=namespace)
 def log_us_all_out(msg):
