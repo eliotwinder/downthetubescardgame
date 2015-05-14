@@ -104,7 +104,7 @@ $(document).ready(function () {
         $('.score').each(function () {
             for (var i = 1; i < numOfRounds + 1; i++) {
                 $(this).append(
-                    "<div class='scorerow'>" +
+                    "<div class='scorerow round"+ i +"'>" +
                         "<div class='scround'>" + i + "</div>" +
                         "<div class='sctrickstaken'></div>" +
                         "<div class='scbid'></div>" +
@@ -237,9 +237,11 @@ $(document).ready(function () {
     });
 
     socket.on('update_scorecard', function(msg){
+        console.log(msg);
         gameRound = msg.gameRound;
+
         stats = msg.stats;  // array of round objects in order of player position
-        $('.score .scorerow:nth-child('+ (gameRound + 2) +')').each(function(i) {
+        $('.round' + gameRound).each(function(i) {
            $(this).find('.sctrickstaken').html(stats[i].tricks_taken);
            $(this).find('.scbid').html(stats[i].bid);
            $(this).find('.scscore').html(stats[i].score);
