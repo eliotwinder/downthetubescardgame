@@ -22,6 +22,7 @@ class Game(db.Model):
     round = db.Column(db.Integer, default=0)
     turn = db.Column(db.Integer, default=0)  # index for who will play a card next
     bid_index = db.Column(db.Integer, default=0)
+    cards_played_counter = db.Column(db.Integer, default=0)
     trick_counter = db.Column(db.Integer, default=0)
     game_started = db.Column(db.Boolean, default=False)
     time_started = db.Column(db.DateTime)
@@ -46,24 +47,24 @@ class Game(db.Model):
 
     # returns a list of players name's in order of position
     def get_players(self):
+        print [scoresheet.player for scoresheet in self.get_scoresheets()]
         return [scoresheet.player for scoresheet in self.get_scoresheets()]
 
     def get_dealer_index(self, round):
-        return self.round % (len(self.get_players()) - 1)
+        return (self.round - 1) % number_of_players
 
     def get_dealer_name(self, round):
+        dealer_index = self.round - 1
         players = self.get_players()
-        return players[self.get_dealer_index(round)]
-
-    # returns the index of the nth bidder for this round
-    def get_bidder_index(self):
-        return (self.bid_index + self.round) % number_of_players
+        return players[dealer_index]
 
     def get_bidder_name(self):
-        scoresheets = self.get_scoresheets()
+        players = self.get_players()
         bidder_index = self.get_bidder_index()
-        bidder_name = scoresheets[bidder_index].player
-        return bidder_name
+        return players[bidder_index]
+
+    def get_bidder_index(self):
+        return (self.bid_index + self.round) % number_of_players
 
     def get_turn_index(self):
         return (self.turn) % number_of_players
@@ -94,6 +95,8 @@ class Game(db.Model):
         played_cards = []
         for scoresheet in scoresheets:
             holder = scoresheet.get_stats(round).played_cards.split(',')
+            print 98
+            print holder
             played_cards.append(holder[trick])
         return played_cards
 
@@ -101,21 +104,18 @@ class Game(db.Model):
     def get_trump(self, round):
         return self.trump.split(',')[round - 1]
 
-    def get_score_report(self, round):
-        stats = self.get_latest_stats(round)
+    def get_score_report(self, round_number):
+        scoresheets = self.get_scoresheets()
+        stats = [scoresheet.get_stats(round_number) for scoresheet in scoresheets]
         scores = [stat.score for stat in stats]
         players = self.get_players()
         sorted_scores = sorted(scores)
         #makes sorted scores - leader keeps total score, others have difference
         sorted_scores.reverse()
-        for index, score in sorted_scores:
-            if index != 0:
-                score -= sorted_scores[0]
-        sorted_players = [players[scores.index(score)] for score in sorted_scores]
+        sorted_players = [players[sorted_scores.index(score)] for score in sorted_scores]
         sorted_players.reverse()
-
-        score_message = [(sorted_players[index] + ": " + str(score)) for index, score in enumerate(score_report_scores)]
-        " ".join(score_message)
+        score_message = [(sorted_players[index] + ": " + str(score)) for index, score in enumerate(sorted_scores)]
+        return " ".join(score_message)
 
     @classmethod
     def create_game(cls):
@@ -130,12 +130,10 @@ class Game(db.Model):
 
         #create a scoresheet for each player TODO: this is currently making a game from all players in the db
         players = Player.query.all()
-        player_names = []
         for player in players:
             p = Scoresheet(player=player.name, game_id=game.id, position=positions.pop())
             db.session.add(p)
             db.session.commit()
-            player_names.append(player.name)
 
             for i in range(0,number_of_rounds):
                 r = Round(scoresheet_id=p.id, round_number=i+1)
@@ -143,7 +141,7 @@ class Game(db.Model):
         db.session.commit()
 
         # assemble data to be sent
-        send_data = {'logMessage': 'game started','players': player_names}
+        send_data = {'logMessage': 'game started','players': game.get_players()}
         socketio.emit('start_game', send_data, namespace=namespace)
 
         #play the first round
@@ -156,11 +154,13 @@ class Game(db.Model):
 
         # set who's turn it is to index 1 (dealer is index 0, so it's left of the dealer)
         self.turn = self.round
+        self.trick_counter = 0
         db.session.commit()
 
         # let everyone know the round started
         socketio.emit('server_message', {'message': 'Round' + str(self.round) + "...FIGHT!!!"}, namespace=namespace)
-        socketio.emit('update_round', {'round': self.round}, namespace=namespace)
+
+        socketio.emit('update_round_and_dealer', {'round': self.round, 'dealer': (self.round - 1) % number_of_players}, namespace=namespace)
 
         # shuffle up n deal
         self.deal()
@@ -192,7 +192,7 @@ class Game(db.Model):
             holder = list()
 
             # deal
-            for i in range(self.round):
+            for i in range(int(self.round)):
                 holder.append(deck.pop(0))
 
             # arrange the cards TODO: how to sort by suit
@@ -207,12 +207,12 @@ class Game(db.Model):
 
         # set trump
         self.trump += (deck.pop(0) + ',')
-        socketio.emit('pass_trump', {'trump': self.trump}, namespace=namespace)
+        send_trump = self.trump.split(",")[self.round - 1]
+        socketio.emit('pass_trump', {'trump': send_trump}, namespace=namespace)
         db.session.commit()
 
         # if the trump is wizard, ask the dealer for a suit
         if self.trump[0] == "W":
-            print 'trump is w?'
             self.choose_a_trump()
         #else get first bid
         else:
@@ -220,15 +220,14 @@ class Game(db.Model):
 
     def choose_a_trump(self):
         # get a list of players in position order, then select the dealer with game,round
-        players = self.get_players()
         dealer = self.get_dealer_name(self.round)
 
         # request trump choice
-        socketio.emit('choose_trump', namespace=namespace, room=dealer.player)
+        socketio.emit('choose_trump', namespace=namespace, room=dealer)
 
     def receive_trump(self, trump, chooser):
         # set trump to chosen suit
-        game.trump = trump
+        self.trump = trump
         db.session.commit()
 
         # tell everyone
@@ -240,25 +239,20 @@ class Game(db.Model):
         self.get_bid()
 
     def get_bid(self):
-        players = self.get_players()
         bidder_index = self.get_bidder_index()
-        how_many_have_bid = (bidder_index - self.round) % number_of_players
-        bidder_name = players[bidder_index]
+        bidder_name = self.get_bidder_name()
 
         #get total bid so far
         total_bid = self.get_total_bid_by_round(self.round)
 
         #check if it's the last bidder
-        if self.bid_index == 0:
-            last_bidder = 'false'
-        elif self.bid_index % number_of_players < number_of_players - 1:
-            last_bidder = "false"
+        if self.bid_index % number_of_players == number_of_players - 1:
+            last_bidder = 'true'
         else:
-            last_bidder = "true"
+            last_bidder = 'false'
 
         #let everyone know who's bidding
         socketio.emit('new_bidder', {'bidderIndex': bidder_index}, namespace=namespace)
-
 
         #tell the player it's their turn to bid
         send_data = {
@@ -275,11 +269,12 @@ class Game(db.Model):
         bidder_index = self.get_bidder_index()
         bidder_name = self.get_bidder_name()
 
-        #save the bid and increase bid_index in the database
+        #save the bid
         bidder = scoresheets[bidder_index]
         this_round = db.session.query(Round).filter_by(round_number=self.round,scoresheet_id=bidder.id).all()
         this_round[0].bid = passed_bid
 
+        # increase bid_index in the database
         self.bid_index += 1
         db.session.commit()
 
@@ -290,11 +285,10 @@ class Game(db.Model):
         socketio.emit('refresh_bid', {'bidArray': bid_list}, namespace=namespace)
 
         # check if everyone has bid
-        if self.bid_index != 0 and self.bid_index % number_of_players != 0:
+        if self.bid_index % number_of_players != 0:
             self.get_bid()
-
-        # if we are done bidding, let everyone know and start a trick
         else:
+            # if we are done bidding, let everyone know and start a trick
             # let us know if we're under/overbid
             difference = self.get_total_bid_by_round(self.round) - self.round
             if difference < 0:
@@ -329,30 +323,23 @@ class Game(db.Model):
         socketio.emit('server_message', msg, namespace=namespace)
 
         # increase the turn counter
+        self.cards_played_counter += 1
         self.turn += 1
         db.session.commit()
 
         # if trick isn't over, get the next players card
-        if self.turn == number_of_players:
+        if self.cards_played_counter % number_of_players != 0:
             self.request_play_card()
-
-
         # if trick is over, score the trick
         else:
             self.score_trick()
 
-
     def score_trick(self):
         scoresheets = self.get_scoresheets()
         played_cards_by_position = self.get_played_cards(self.round, self.trick_counter)
-        who_led = self.get_turn_index()
+        who_led = self.get_turn_index() % number_of_players
         played_cards_by_played_order = played_cards_by_position[who_led:] + played_cards_by_position[:who_led]
         trump = self.get_trump(self.round)[0]
-
-        #get led suit
-        led_suit = played_cards_by_played_order[0]
-        if led_suit == "W"  or led_suit == "J":
-            led_suit = "X"
 
         # helper function to check if a hand is all jacks
         def all_jesters(played_cards):
@@ -369,7 +356,18 @@ class Game(db.Model):
             else:
                 return -1
 
-        # winner in this tree is the index of the winner where 0 = led card. we will need to add this to who_led to get the real index of the winner
+        #get led suit
+        def find_led_suit(cards_played):
+            for i, card in enumerate(cards_played):
+                print card
+                if card[0] == "W":
+                    return "X"
+                elif card[0] != "J":
+                    return card[0]
+
+        led_suit = find_led_suit(played_cards_by_played_order)
+
+        # find the index of the winner where 0 = led card
         if all_jesters(played_cards_by_played_order):
             winner = 0
         elif find_wizard(played_cards_by_played_order) > -1:
@@ -424,7 +422,7 @@ class Game(db.Model):
             if self.round == 1:
                 previous_score = 0
             else:
-                previous_score = scoresheet.get_stats(self.round).score
+                previous_score = scoresheet.get_stats(self.round - 1).score
 
             # tally up the score
             if bid == tricks_taken:
@@ -448,15 +446,13 @@ class Game(db.Model):
         socketio.emit('update_scorecard', send_data, namespace=namespace)
 
         #log the action
-        score_report = self.get_score_report()
+        score_report = self.get_score_report(self.round)
 
         send_data = {'message': score_report}
         socketio.emit('server_message', send_data, namespace=namespace)
 
-        #increment round counter, check if the game is over
-        self.round += 1
-        db.session.commit()
-        if self.round == number_of_rounds:
+        #check if the game is over (round will be incremented at beginning of round
+        if self.round + 1 == number_of_rounds:
             self.game_ended = True
             print 'Game Over'
         else:
@@ -511,6 +507,7 @@ class Scoresheet(db.Model):
 class Round(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     scoresheet_id = db.Column(db.Integer, db.ForeignKey('scoresheet.id'))
+    score = db.Column(db.Integer, default=0)
     round_number = db.Column(db.Integer)
     tricks_taken = db.Column(db.Integer, default=0)
     bid = db.Column(db.Integer, default=0)

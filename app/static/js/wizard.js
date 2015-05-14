@@ -113,13 +113,13 @@ $(document).ready(function () {
                 );
             }
         });
-
-        console.log($('.score .scorerow:nth-child(3)'));
     });
 
     // reset round div
-    socket.on('update_round', function (msg) {
+    socket.on('update_round_and_dealer', function (msg) {
         $('#round').html(msg.round);
+        $('.dealer').hide();
+        $($('.dealer').get(msg.dealer)).show();
     });
 
     // show your hand and change dealer
@@ -161,6 +161,7 @@ $(document).ready(function () {
 
     //receive a request to bid along with data.roundNumber, data.bidIndex and data.totalBid
     socket.on('your_bid', function (data) {
+        console.log('your bid');
         var roundNumber = data.roundNumber
         var bidderIndex = data.bidderIndex;
         var totalBid = data.totalBid;
@@ -223,7 +224,7 @@ $(document).ready(function () {
             var card = $(this).text();
             $(this).hide();
             $('.hand div').off('click');
-            $("#" + myName + " .go").remove();
+            $("#" + myName + " .go").hide();
             socket.emit('card_played', {'card': card});
         });
     });
@@ -238,7 +239,6 @@ $(document).ready(function () {
     socket.on('update_scorecard', function(msg){
         gameRound = msg.gameRound;
         stats = msg.stats;  // array of round objects in order of player position
-        console.log(gameRound);
         $('.score .scorerow:nth-child('+ (gameRound + 2) +')').each(function(i) {
            $(this).find('.sctrickstaken').html(stats[i].tricks_taken);
            $(this).find('.scbid').html(stats[i].bid);
