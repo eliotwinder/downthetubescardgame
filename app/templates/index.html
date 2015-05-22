@@ -21,12 +21,13 @@
             </ul>
         {%  endif %}
     {%  endwith %}
+    <form id="startgame">
+        <input type="submit" value="start!">
+    </form>
     <div id="container">
-        <form id="startgame">
-            <input type="submit" value="start!">
-        </form>
-          <h1> hello {{ current_user.name }} </h1>
-        <div id="players"></div>
+        <div id="opponents"></div>
+        <div id='bidarea'>Your bid!<br><div id="bid"></div></div>
+        <div class="user"></div>
         <div id="logholder">
             <form id="broadcast">
               <input type="text" name="broadcast_data" id="broadcast_data" placeholder="Message">
@@ -36,23 +37,21 @@
                 <p>Received:</p>
             </div>
         </div>
-        <br>
-        <br>
+        <div id="quickscorecontainer"><div id="quickscore"></div><br><span class="subheading">click for full scoreboard</span></div>
+        <div id='trump'>Trump: <div id="showtrump"></div></div>
+        <div id='roundnumber'>Round: <div id='showround'>0</div></div>
         <div id="choosetrump">You get to pick trump!!!:<br>
             <div>H</div>
             <div>C</div>
             <div>D</div>
             <div>S</div>
         </div>
-        Trump: <div id="trump"></div>
         <br>
         <br>
-        This trick: <div id="played"></div>
-        <br>
-        <br>
-        <div id="roundlabel">round: <div id="round">0</div></div><br>
         <div id="scorecard"></div>
+
     </div>
+
   {% block content %}{% endblock %}
   </body>
 </html>

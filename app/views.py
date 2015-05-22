@@ -56,8 +56,8 @@ def trigger_start():
 
 # receive bid
 @socketio.on('bid_cast', namespace=namespace)
-def got_a_bid(bid):
-    Game.get_game().receive_bid(bid)
+def got_a_bid(msg):
+    Game.get_game().receive_bid(msg['bid'])
 
 @socketio.on('trump_chosen', namespace=namespace)
 def trump_chosen(msg):

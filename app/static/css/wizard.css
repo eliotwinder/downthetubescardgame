@@ -18,7 +18,6 @@ article, aside, canvas, details, embed,
 figure, figcaption, footer, header, hgroup,
 menu, nav, output, ruby, section, summary,
 time, mark, audio, video {
-	margin: 0;
 	padding: 0;
 	border: 0;
 	font-size: 100%;
@@ -27,6 +26,10 @@ time, mark, audio, video {
 	-webkit-box-sizing: border-box;
 	-moz-box-sizing: border-box;
 	box-sizing: border-box;
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	margin-left: 0px;
 }
 /* HTML5 display-role reset for older browsers */
 article, aside, details, figcaption, figure,
@@ -35,8 +38,7 @@ footer, header, hgroup, menu, nav, section {
 }
 body {
 	line-height: 1;
-	height: 277px;
-}
+    color: #434343;}
 ol, ul {
 	list-style: none;
 }
@@ -56,9 +58,31 @@ table {
 }
 
 #container {
-    display: block;
-    width: 800px;
-    margin: 5px;
+	display: block;
+	width: 960px;
+	height: 650px;
+	background-color: #366D1B;
+}
+#opponents {
+	margin: 0 auto;
+	display: block;
+	width: 100%;
+    height: 147px;
+	text-align: center;
+	padding-top: 25px;
+}
+
+.user {
+	margin-right: auto;
+	margin-left: auto;
+	margin-bottom: 0;
+	display: block;
+	width: 100%;
+	text-align: center;
+	padding-top: 25px;
+	top: 16px;
+	height: 246px;
+	margin-top: 272px;
 }
 
 #players {
@@ -74,13 +98,27 @@ table {
     padding: 5px;
 }
 
-.dealer,.turn, .go {
-    float: right;
+.dealer {
     display: none;
 }
-
-.playerspace .gonow {
-    display: inline-block;
+.playerspace  {
+	background-color: #6ECC3D;
+	width: 110px;
+	height: 122px;
+	margin: 0 15px;
+	display: inline-block;
+	padding-top: 5px;
+	font-size: 16px;
+	-webkit-box-shadow: 0px 0px 0px;
+	box-shadow: 0px 0px 0px;
+	color: #434343;
+}
+.subheading {
+	font-size: 12px;
+	line-height: 16px;
+	margin-bottom: 10px;
+    margin-left: 3px;
+    margin-right: 3px;
 }
 
 .currentstats, .notifications {
@@ -94,26 +132,41 @@ table {
 }
 
 .bidding {
-    background-color: orange;
-    color: white;
-}
-
-.bidding div {
-    border: thin solid #000000;
-    cursor: hand;
+	background-color: orange;
 }
 
 .playing div{
-    border: thin solid #000000;
     cursor: hand;
-    background-color: #6a0996;
-    color: white;
 }
 
 #logholder {
-	width: 300px;
-	height: 300px;
+	width: 220px;
+	height: 235px;
 	display: inline-block;
+	background-color: #6ECC3D;
+	position: relative;
+	font-size: small;
+	margin-top: -300px;
+	margin-left: 17px;
+	padding-top: 4px;
+	padding-right: 4px;
+	padding-bottom: 4px;
+	padding-left: 4px;
+}
+#quickscorecontainer {
+	width: 220px;
+	height: 100px;
+	display: inline-block;
+	background-color: #6ECC3D;
+	position: relative;
+	font-size: medium;
+	margin-top: -282px;
+	margin-left: 478px;
+	padding-top: 4px;
+	padding-right: 4px;
+	padding-bottom: 4px;
+	padding-left: 4px;
+	text-align: center;
 }
 #broadcast{
 	width: 300px;
@@ -121,41 +174,156 @@ table {
 	height: 10%;
 }
 #log {
-	height: 90%;
-	padding-left: 5px;
-	padding-top: 5px;
-	padding-right: 5px;
-	padding-bottom: 5px;
 	overflow-x: scroll;
-	border: medium solid #000000;
-	width: 400px;
-	display: inline-block
+	border: thin solid #000000;
+	position: relative;
+	margin-top: 2px;
+    width: 100%;
+	height: 202px;
+	padding-top: 2px;
+	padding-right: 2px;
+	padding-bottom: 2px;
+	padding-left: 2px;
 }
 
 #choosetrump {
-    background-color: deeppink;
-    color: white;
+    background-color: #6ECC3D;
     display: none;
+    margin-top: -440px;
+    margin-left: 365px;
+    padding: 20px;
 }
 
 #scorecard {
 	text-align: center;
+	position: absolute;
+	background-color: #FFE284;
+	top: 40px;
+	left: 78px;
+	width: 800px;
+	height: 600px;
+	display: none;
 }
 
 .score {
-    width: 125px;
-    margin: 3px;
+	width: 123px;
+	border-style: solid;
+	border-width: 3px;
+	padding-top: 1px;
+	margin-right: 17px;
+	margin-top: 17px;
+	margin-bottom: 17px;
+	margin-left: 17px;
 }
 .scorerow, .scoreheader {
 	width: 100%;
-    display: inline-block;
+	display: inline-block;
 }
 
 .scoreheader > div, .scorerow > div, .scoreheader > div {
-    border: thin solid #000000;
-    width: 25%;
-    height: 18px;
+	border: thin solid #000000;
+	width: 25%;
+	height: 18px;
+	display: inline-block;
 }
 
+h1 h2 {
+	display: inline-block;
+}
+h2 {
+	font-size: 14px;
+	vertical-align: 98px;
+}
+.playerspacename {
+    margin-right: 5px;
+	display: inline;
+}
+.card {
+	width: 75px;
+    background-size: 100%;
+	height: 110px;
+    background-repeat: no-repeat;
+	display: inline-block;
+}
+
+.rank , .suit{
+	display: none;
+	width: 10px;
+    border-style: none;
+}
+.user .card {
+	margin-top: -58px;
+	margin-bottom: 9px;
+    margin-left: -56px;
+}
+.user .playerspace {
+	width: 435px;
+	height: 172px;
+}
+.user .playedcard {
+	margin-top: -150px;
+}
+.suitgroup {
+	display: inline-block;
+	margin-top: 6px;
+	margin-left: 55px;
+}
+.hand {
+	width: 100%;
+	display: inline-block;
+}
+.quickscoreplayer {
+	margin: 0 auto;
+	width: 50px;
+	height: 40px;
+    border: thin solid #000000;
+}
+
+#bidarea {
+    display: none;
+    height: 130px;
+	position: absolute;
+	width: 404px;
+	background-color: #6ECC3D;
+	left: 280px;
+    top: 200px;
+    text-align: center;
+    padding: 5px;
+}
+
+.bidselect {
+    font-size: x-large;
+    width: 30px;
+    height: 28px;
+    border-style: solid;
+    border-width: thin;
+    margin: 3px;
+}
+#trump, #roundnumber {
+	background-color: #6ECC3D;
+	text-align: center;
+}
+#trump {
+	width: 196px;
+	height: 50px;
+	margin-top: -402px;
+	margin-left: -901px;
+	line-height: 47px;
+	font-size: x-large;
+}
+
+#showtrump {
+    margin-top: -28px;
+}
+
+#roundnumber {
+	width: 211px;
+	border-width: medium;
+	height: 50px;
+	margin-top: -402px;
+	margin-left: 464px;
+	line-height: 47px;
+	font-size: x-large;
+}
 
 
