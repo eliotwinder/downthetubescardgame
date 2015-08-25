@@ -70,3 +70,11 @@ def get_the_played_card(msg):
 @socketio.on('logout_all', namespace=namespace)
 def log_us_all_out(msg):
     emit('redirect', {'url': url_for('logout')}, broadcast=True)
+
+@socketio.on('score_test', namespace=namespace)
+def score_test(msg):
+    game = Game.get_game()
+    print 'rd'
+    print game.round
+    print 'trick count'
+

@@ -14,7 +14,7 @@ from random import shuffle
 #
 
 namespace = "/test"
-number_of_players = 2  # TODO: make these properties of Game
+number_of_players = 2# TODO: make these properties of Game
 number_of_rounds = 4
 
 class Game(db.Model):
@@ -32,6 +32,16 @@ class Game(db.Model):
 
     def __repr__(self):
         return "game# %r" % str(self.id)
+
+####### helper functions
+    #check if it is a bot or real player
+    def emit_message(self, *args, **kwargs):
+        username = kwargs.get('room')
+        if username:
+            user = Player.query.filter_by(name=username)
+            if user.bot:
+                Bot(self.game)
+        socketio.emit(*args, **kwargs)
 
     # returns the latest game
     @classmethod
@@ -57,9 +67,15 @@ class Game(db.Model):
         players = self.get_players()
         return players[dealer_index]
 
+    def get_bidder(self):
+        players = self.get
+        bidder_index = self.get_bidder_index()
+        return players[bidder_index]
+
     def get_bidder_name(self):
         players = self.get_players()
         bidder_index = self.get_bidder_index()
+        print players
         return players[bidder_index]
 
     def get_bidder_index(self):
@@ -74,35 +90,38 @@ class Game(db.Model):
         turn_name = scoresheets[turn_index].player
         return turn_name
 
-    # helper function to check if a hand is all jacks
-    def all_jesters(self, played_cards):
+    # helper function to check if a hand is all jesters
+    @staticmethod
+    def all_jesters(played_cards):
         for played_card in played_cards:
-            if played_card != "J":
+            if played_card[0] != "J":
                 return False
         return True
 
     # find the index of a wizard
-    def find_wizard(self, played_cards):
+    @staticmethod
+    def find_wizard( played_cards):
         for i, card in enumerate(played_cards):
-            if card == "W":
+            if card[0] == "W":
                 return i
         else:
             return -1
 
     #get led suit
-    def find_led_suit(self, cards_played):
-        cards = cards_played
+    @classmethod
+    def find_led_suit(cls, cards_played):
+        cards = cards_played[:]
         if len(cards) > 0:
             for i, card in enumerate(cards):
                 if card == "":
                     return "X"
                 elif card[0] != "W" and card[0] != "J":
                     return card[0]
-                elif card[0] == "J":
+                elif card[0] == "W":
                     return "X"
                 else:
                     cards.pop(0)
-                    return self.find_led_suit()
+                    return cls.find_led_suit(cards)
         else:
             return "X"
 
@@ -146,6 +165,9 @@ class Game(db.Model):
         score_message = [(sorted_players[index] + ": " + str(score)) for index, score in enumerate(sorted_scores)]
         return " ".join(score_message)
 
+
+
+######game flow methods
     @classmethod
     def create_game(cls):
         #create row in game table
@@ -200,8 +222,9 @@ class Game(db.Model):
         # build the deck
         deck = []
         suits = ['C', 'D', 'H', 'S']
+
         for suit in suits:
-            for i in range(1, 14):
+            for i in range(2, 15):
                 deck.append({'suit': suit,
                              'rank': i})
         for i in range(3):
@@ -210,6 +233,7 @@ class Game(db.Model):
 
         #shuffle
         shuffle(deck)
+
         # deal the cards
         for scoresheet in scoresheets:
             # select the hand from scoresheet object
@@ -339,7 +363,8 @@ class Game(db.Model):
         who_led = self.turn - self.cards_played_counter
         played_cards_by_played_order = played_cards_by_position[who_led:] + played_cards_by_position[:who_led]
         led_suit = self.find_led_suit(played_cards_by_played_order)
-
+        print 'led suit'
+        print led_suit
         # tell next player it's their turn
         message = {'turn': self.round,
                    'ledSuit': led_suit}
@@ -378,6 +403,28 @@ class Game(db.Model):
         else:
             self.score_trick()
 
+    @classmethod
+    # cards should be in order of played order
+    def score_cards(cls, cards, who_led, trump):
+
+        led_suit = cls.find_led_suit(cards)
+        if cls.all_jesters(cards):
+            winner = 0
+        elif cls.find_wizard(cards) > -1:
+            winner = cls.find_wizard(cards)
+        else:
+            played_card_scores = []
+            print cards
+            for i, card in enumerate(cards):
+                if card[0] == trump:
+                    played_card_scores.append(13 + int(card[1:]))
+                elif card[0] == led_suit:
+                    played_card_scores.append(int(card[1:]))
+                else:
+                    played_card_scores.append(0)
+            winner = played_card_scores.index(max(played_card_scores))
+        return winner
+
     def score_trick(self):
         self.cards_played_counter = 0
         db.session.commit()
@@ -387,27 +434,10 @@ class Game(db.Model):
         played_cards_by_played_order = played_cards_by_position[who_led:] + played_cards_by_position[:who_led]
         trump = self.get_trump(self.round)
 
-        led_suit = self.find_led_suit(played_cards_by_played_order)
-
-        # find the index of the winner where 0 = led card
-        if self.all_jesters(played_cards_by_played_order):
-            winner = 0
-        elif self.find_wizard(played_cards_by_played_order) > -1:
-            winner = self.find_wizard(played_cards_by_played_order)
-        else:
-            played_card_scores = []
-            for i, card in enumerate(played_cards_by_played_order):
-                if card[0] == trump:
-                    played_card_scores.append(13 + int(card[1:]))
-                elif card[0] == led_suit:
-                    played_card_scores.append(int(card[1:]))
-                else:
-                    played_card_scores.append(0)
-            winner = played_card_scores.index(max(played_card_scores))
-
-        # calculate position index from played card index
+        winner = Game.score_cards(played_cards_by_played_order, who_led, trump)
         winner += who_led
         winner %= number_of_players
+
 
         # add a trick taken to the scoresheet and set the turn to the winner
         winner_scoresheet = scoresheets[winner]
@@ -484,8 +514,9 @@ class Game(db.Model):
 class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     position = db.Column(db.Integer)
-    name = db.Column(db.String(64), index=True, unique=True, )
+    name = db.Column(db.String(64), index=True, unique=True)
     results = db.relationship('Scoresheet', backref='players', lazy='dynamic')
+    bot = db.relationship(db.Boolean)
 
     def __repr__(self):
         return str(self.name)
@@ -505,6 +536,25 @@ class Player(db.Model):
         except NameError:
             return str(self.id)  # python 3
 
+    # check if given player is a bot, and request appropriately
+    def is_bot(self, player, func):
+        if player.bot == True:
+            return True
+        else:
+            return False
+#
+# class Bot(object):
+#     def __init__(self, game, player, arguments, keyword_args):
+#         self.player=player
+#         self.game=game
+#         self.handler(arguments, keyword_args)
+#
+#     def handler(self, arguments, keyword_args):
+#         if arguments[0] == 'get_bid':
+#
+#         # def get_bid(myhand, ):
+#
+#     def get_bid
 class Scoresheet(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     player = db.Column(db.Integer, db.ForeignKey('player.name'))
@@ -539,5 +589,7 @@ class Round(db.Model):
 
     def __repr__(self):
         return "<round %r>" % (self.round_number)
+
+
 
 

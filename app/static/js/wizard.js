@@ -1,7 +1,7 @@
 $(document).ready(function () {
     var namespace = '/test';
     var myName = window.current_user_name;
-    var numberOfPlayers = 2;
+    var numberOfPlayers = 3;
 
     window.setInterval(function () {
         var elem = document.getElementById('log');
@@ -161,7 +161,6 @@ $(document).ready(function () {
     //TODO: data is coming in a string but we need an array. i've written a function - better way to do this?
     socket.on('deal_hand', function (msg) {
         var h = msg.hand;
-        console.log(h);
         for (var i = 0; i < h.length; i++) {
             $("#" + myName).find(".hand").append(
                 createCard(h[i].suit , h[i].rank )
@@ -222,6 +221,8 @@ $(document).ready(function () {
             }
         }
 
+        $('.bidselect').css('cursor', 'pointer');
+
         $('#bidarea').show();
 
         //add event listener to send bid
@@ -254,6 +255,7 @@ $(document).ready(function () {
         var myHand = $("#" + myName + " .hand");
         myHand.addClass('playing');
         var ledSuit = msg.ledSuit;
+        console.log('led suit: ' + ledSuit);
 
         //check if the player has this suit and must follow
         var hasLedSuit = false;
@@ -262,7 +264,7 @@ $(document).ready(function () {
                 hasLedSuit = true
             }
         });
-
+        console.log('has led suit: ' + hasLedSuit);
         //if player has to follow, make it so they can't click the cards they can't play
         if (hasLedSuit) {
             myHand.children().each(function () {
@@ -270,6 +272,9 @@ $(document).ready(function () {
                 if ([ledSuit, "W", "J"].indexOf($(this).find('.suit').text()) > -1) {
                     canPlayCard = true;
                 }
+                console.log('led suit: ' + ledSuit);
+                console.log('card: ' + $(this));
+                console.log('can play card: ' + canPlayCard);
                 if (canPlayCard) {
                     $(this).click(function () {
                         var card = $(this).text();
@@ -303,12 +308,7 @@ $(document).ready(function () {
     });
 
     socket.on('card_played', function(msg) {
-         $("#" + msg.player).find(".playedcard").append(
-            "<div class='card " + msg.rank + " " + msg.suit +"'>" +
-                "<div class='rank'>" + msg.rank + "</div>" +
-                "<div class='suit'>" + msg.suit + "</div>" +
-            "</div>"
-         );
+         $("#" + msg.player).find(".playedcard").append(createCard(msg.suit,msg.rank));
     });
 
     //refresh tricks taken
@@ -323,6 +323,8 @@ $(document).ready(function () {
 
     socket.on('update_scorecard', function(msg){
         gameRound = msg.gameRound;
+
+        $('.trickstaken, .bid').text('0');
 
         stats = msg.stats;  // array of round objects in order of player position
         $('.round' + gameRound).each(function(i) {
@@ -343,6 +345,10 @@ $(document).ready(function () {
 
     $('#scorecard').click(function(){
         $('#scorecard').hide();
+    });
+
+    $('#score').click(function() {
+        socket.emit('score_test')
     });
 });
 
